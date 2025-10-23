@@ -77,7 +77,7 @@ const MemberList = () => {
     return (
       <div className="flex items-center justify-center min-h-64">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <Loader2 className="w-8 h-8 animate-spin text-[#800000] mx-auto mb-4" /> {/* UPDATED COLOR */}
           <p className="text-gray-600">Loading members...</p>
         </div>
       </div>
@@ -89,7 +89,7 @@ const MemberList = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Members Directory</h2>
+          <h2 className="text-2xl font-bold text-[#333]">Members Directory</h2> {/* UPDATED TEXT */}
           <p className="text-gray-600 mt-1">
             {filteredMembers.length} of {members.length} members
             {filterStatus !== 'all' && ` • ${filterStatus}`}
@@ -101,7 +101,7 @@ const MemberList = () => {
           <button
             onClick={refresh}
             disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+            className="px-4 py-2 bg-[#800000] text-white rounded-lg hover:bg-[#600000] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2" /* UPDATED BG */
           >
             <span>Refresh</span>
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -119,7 +119,7 @@ const MemberList = () => {
             placeholder="Search members by name, email, NIC..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:border-transparent" /* UPDATED RING */
           />
         </div>
 
@@ -129,7 +129,7 @@ const MemberList = () => {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:border-transparent" /* UPDATED RING */
           >
             <option value="all">All Status</option>
             <option value="pending">Pending</option>
@@ -214,7 +214,8 @@ const MemberList = () => {
                               alt={member.fullName}
                             />
                           ) : (
-                            <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center">
+                            /* UPDATED AVATAR GRADIENT */
+                            <div className="h-10 w-10 rounded-full bg-gradient-to-r from-[#2563EB] to-[#800000] flex items-center justify-center">
                               <User className="h-5 w-5 text-white" />
                             </div>
                           )}
@@ -325,7 +326,7 @@ const MemberList = () => {
           <button
             onClick={loadMore}
             disabled={loadingMore}
-            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-[#800000] hover:bg-[#600000] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm" /* UPDATED BG */
           >
             {loadingMore ? (
               <>

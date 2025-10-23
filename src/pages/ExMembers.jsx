@@ -125,13 +125,13 @@ const ExMember = () => {
   const totalPages = Math.ceil(total / limit);
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
+    <div className="p-6 bg-[#F4F7F8] min-h-screen"> {/* UPDATED BG */}
       <div className="max-w-7xl mx-auto">
-        <h2 className="text-3xl font-bold text-gray-800 mb-8">Member Directory</h2>
+        <h2 className="text-3xl font-bold text-[#333] mb-8">Member Directory</h2> {/* UPDATED TEXT */}
 
         {/* Filter Section */}
         <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-          <h3 className="text-xl font-semibold text-gray-700 mb-4">Filters</h3>
+          <h3 className="text-xl font-semibold text-[#333] mb-4">Filters</h3> {/* UPDATED TEXT */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">Name</label>
@@ -141,7 +141,7 @@ const ExMember = () => {
                 placeholder="Search by Name"
                 value={filters.name}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* UPDATED RING */
               />
             </div>
             <div>
@@ -152,7 +152,7 @@ const ExMember = () => {
                 placeholder="Search by Email"
                 value={filters.email}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* UPDATED RING */
               />
             </div>
             <div>
@@ -161,7 +161,7 @@ const ExMember = () => {
                 name="gender"
                 value={filters.gender}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* UPDATED RING */
               >
                 <option value="">All Genders</option>
                 <option value="Male">Male</option>
@@ -177,7 +177,7 @@ const ExMember = () => {
                 placeholder="Search by Designation"
                 value={filters.designation}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* UPDATED RING */
               />
             </div>
             <div>
@@ -188,7 +188,7 @@ const ExMember = () => {
                 placeholder="Search by NIC"
                 value={filters.nic}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* UPDATED RING */
               />
             </div>
             <div>
@@ -199,7 +199,7 @@ const ExMember = () => {
                 placeholder="Search by Phone"
                 value={filters.phone}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* UPDATED RING */
               />
             </div>
             <div>
@@ -210,7 +210,7 @@ const ExMember = () => {
                 placeholder="Search by Address"
                 value={filters.address}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* UPDATED RING */
               />
             </div>
             <div>
@@ -220,7 +220,7 @@ const ExMember = () => {
                 name="dateFrom"
                 value={filters.dateFrom}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* UPDATED RING */
               />
             </div>
             <div>
@@ -230,7 +230,7 @@ const ExMember = () => {
                 name="dateTo"
                 value={filters.dateTo}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* UPDATED RING */
               />
             </div>
           </div>
@@ -239,7 +239,7 @@ const ExMember = () => {
           <div className="flex flex-wrap gap-4 mt-6">
             <button
               onClick={applyFilters}
-              className="flex items-center bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition duration-200 font-medium"
+              className="flex items-center bg-[#800000] text-white px-6 py-3 rounded-lg hover:bg-[#600000] transition duration-200 font-medium" /* UPDATED BG */
             >
               <Search className="w-5 h-5 mr-2" /> Apply Filters
             </button>
@@ -261,7 +261,7 @@ const ExMember = () => {
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-blue-600">
+                <thead className="bg-[#2563EB]"> {/* UPDATED THEAD BG */}
                   <tr>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Name</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Email</th>
@@ -275,7 +275,7 @@ const ExMember = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {members.map((m) => (
-                    <tr key={m.id} className="hover:bg-gray-50 transition duration-150">
+                    <tr key={m.id} className="hover:bg-[#800000]/5 transition duration-150"> {/* UPDATED HOVER */}
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{m.name_in_full || "-"}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{m.email || "-"}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{m.gender || "-"}</td>
@@ -303,7 +303,7 @@ const ExMember = () => {
               className={`px-6 py-3 rounded-lg font-medium transition duration-200 ${
                 page === 1
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700"
+                  : "bg-[#800000] text-white hover:bg-[#600000]" /* UPDATED BG/HOVER */
               }`}
             >
               Previous
@@ -317,7 +317,7 @@ const ExMember = () => {
               className={`px-6 py-3 rounded-lg font-medium transition duration-200 ${
                 page === totalPages
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700"
+                  : "bg-[#800000] text-white hover:bg-[#600000]" /* UPDATED BG/HOVER */
               }`}
             >
               Next
