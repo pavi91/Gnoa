@@ -141,13 +141,13 @@ const UserManagement = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6 font-sans">
+    <div className="min-h-screen bg-[#F4F7F8] p-6 font-sans"> {/* UPDATED BG */}
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">User Management</h1>
+          <h1 className="text-3xl font-bold text-[#333]">User Management</h1> {/* UPDATED TEXT */}
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+            className="flex items-center gap-2 bg-[#800000] text-white px-4 py-2 rounded-lg hover:bg-[#600000] transition" /* UPDATED BG */
           >
             <UserPlus size={20} />
             {showCreateForm ? "Close Form" : "Add User"}
@@ -171,7 +171,7 @@ const UserManagement = () => {
         {/* Create User Form */}
         {showCreateForm && (
           <div className="bg-white p-6 rounded-lg shadow-lg mb-6 transition-all duration-300">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Add New User</h2>
+            <h2 className="text-xl font-semibold text-[#333] mb-4">Add New User</h2> {/* UPDATED TEXT */}
             <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="flex flex-col">
                 <label htmlFor="newName" className="text-sm font-medium text-gray-600 mb-1">Name</label>
@@ -181,7 +181,7 @@ const UserManagement = () => {
                   placeholder="Enter name (optional)"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none" /* UPDATED RING */
                 />
               </div>
               <div className="flex flex-col">
@@ -192,7 +192,7 @@ const UserManagement = () => {
                   placeholder="Enter email"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  className="border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none" /* UPDATED RING */
                 />
               </div>
               <div className="flex flex-col">
@@ -203,7 +203,7 @@ const UserManagement = () => {
                   placeholder="Enter password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none" /* UPDATED RING */
                 />
               </div>
               <div className="flex flex-col md:flex-row items-end gap-2">
@@ -213,7 +213,7 @@ const UserManagement = () => {
                     id="newRole"
                     value={newRole}
                     onChange={(e) => setNewRole(e.target.value)}
-                    className="border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none" /* UPDATED RING */
                   >
                     <option value="user">User</option>
                     <option value="admin">Admin</option>
@@ -221,7 +221,7 @@ const UserManagement = () => {
                 </div>
                 <button
                   type="submit"
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition w-full md:w-auto"
+                  className="bg-[#800000] text-white px-4 py-2 rounded-lg hover:bg-[#600000] transition w-full md:w-auto" /* UPDATED BG */
                 >
                   Create User
                 </button>
@@ -238,11 +238,11 @@ const UserManagement = () => {
             placeholder="Search by email or name..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-grow p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            className="flex-grow p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#800000] focus:outline-none" /* UPDATED RING */
           />
           <button
             onClick={fetchUsers}
-            className="ml-4 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+            className="ml-4 bg-[#800000] text-white px-4 py-2 rounded-lg hover:bg-[#600000] transition" /* UPDATED BG */
           >
             Refresh
           </button>
@@ -251,14 +251,14 @@ const UserManagement = () => {
         {/* Users Table */}
         {loading ? (
           <div className="text-center text-gray-500 py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-indigo-600 mx-auto"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#800000] mx-auto"></div> {/* UPDATED BORDER */}
             <p className="mt-2">Loading users...</p>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-lg overflow-hidden">
             <table className="w-full">
               <thead>
-                <tr className="bg-indigo-50 text-gray-700 text-left text-sm uppercase tracking-wider">
+                <tr className="bg-[#800000]/10 text-[#333] text-left text-sm uppercase tracking-wider"> {/* UPDATED BG/TEXT */}
                   <th className="p-4">Name</th>
                   <th className="p-4">Email</th>
                   <th className="p-4">Role</th>
@@ -270,7 +270,7 @@ const UserManagement = () => {
                 {filteredUsers.map((user, index) => (
                   <tr
                     key={user.id}
-                    className={`border-t ${index % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-indigo-50 transition`}
+                    className={`border-t ${index % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-[#800000]/5 transition`} /* UPDATED HOVER */
                   >
                     <td className="p-4">{user.user_metadata?.name || "—"}</td>
                     <td className="p-4">{user.email}</td>
@@ -278,7 +278,7 @@ const UserManagement = () => {
                       <select
                         value={user.user_metadata?.role || "user"}
                         onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                        className="border border-gray-300 p-1 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        className="border border-gray-300 p-1 rounded-lg bg-white focus:ring-2 focus:ring-[#800000] focus:outline-none" /* UPDATED RING */
                       >
                         <option value="user">User</option>
                         <option value="admin">Admin</option>
