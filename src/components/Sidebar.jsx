@@ -33,7 +33,7 @@ const Sidebar = ({ isOpen, isMobile, onClose }) => {
       icon: UserCheck,
       label: 'Applications',
       path: '/applied',
-      badge: 126
+      // badge: 126
     },
     {
       icon: UserPlus,

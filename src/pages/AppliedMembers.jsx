@@ -11,8 +11,9 @@ import {
   Briefcase, 
   Search, 
   Filter,
-  MoreHorizontal,
-  CheckCircle 
+  CheckCircle,
+  ShieldCheck, // New icon for Verify button
+  Sigma, // Placeholder for Gender/Age since we removed the second row for NIC
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { pdf } from '@react-pdf/renderer';
@@ -36,28 +37,70 @@ const MemberList = () => {
   } = useMemberResponses();
 
   // Navigate to AddAppliedMembers with member data
+  const getValidMaritalStatus = (status) => {
+    if (status === 'Yes' || status === 'Married') return 'Married';
+    if (status === 'No' || status === 'Single') return 'Single';
+    // Add other known bad values
+    
+    // Check if it's already a valid value
+    if (['Single', 'Married', 'Divorced', 'Widowed'].includes(status)) {
+      return status;
+    }
+    
+    return ""; // Default to empty
+  };
+
+  // Navigate to AddAppliedMembers with member data
   const handleVerify = (member) => {
     // Map fields to match AddAppliedMembers formData
     const memberData = {
+      // --- Personal Info ---
       fullName: member.fullName || '',
       email: member.email || '',
-      designation: member.designation || '',
+      nicNumber: member.nicNumber || '',
+      dob: member.dateOfBirth ? new Date(member.dateOfBirth).toISOString().split('T')[0] : '',
+      mobile: member.phoneNumber || '',
+      whatsappNumber: member.whatsappNumber || '', // <-- ADDED
+      gender: member.gender || '',
+
+      maritalStatus: getValidMaritalStatus(member.maritalStatus),
+      
       officialAddress: member.officialAddress || '',
       personalAddress: member.personalAddress || '',
-      dob: member.dob ? new Date(member.dob).toISOString().split('T')[0] : '',
+
+      // --- Designation & Work Place ---
+      // Note: We prefill the *value* of designation/institution.
+      // The user may need to re-select Category/Province/District 
+      // to re-populate the dropdowns if they wish to change them.
+      designation: member.designation || '',
+      province: member.province || '',             // <-- ADDED
+      district: member.district || '',           // <-- ADDED
+      rdhs: member.rdhs || '',                   // <-- ADDED
+      institution: member.organizationType || '',  // <-- MAPPED (organizationType -> institution)
+
+      // --- Employment Details ---
       firstAppointmentDate: member.firstAppointmentDate 
         ? new Date(member.firstAppointmentDate).toISOString().split('T')[0] 
         : '',
-      mobile: member.phoneNumber || '', // Map phoneNumber to mobile
-      gender: member.gender || '',
-      maritalStatus: member.maritalStatus || '',
       employmentNumber: member.employmentNumber || '',
-      university: member.university || '',
-      signature: member.signature || null,
+      university: member.collegeUniversity || '',
+      nursingCouncilReg: member.nursingCouncilNumber || '', // <-- MAPPED (nursingCouncilNumber -> nursingCouncilReg)
+      educationalQuals: member.educationalQualifications || '', // <-- MAPPED (educationalQualifications -> educationalQuals)
+      specialties: member.specialties ? member.specialties.join(', ') : '', // <-- MAPPED (array -> string)
+
+      // --- Signature ---
+      signature: member.signatureUrl || null,
     };
+    
+    // The category is missing, so we'll log a warning if it's not in the member object.
+    // The AddMembers form logic depends on it.
+    if (!member.category) {
+      console.warn("Warning: Navigating without a 'category'. Dropdown logic in AddMembers may be incomplete.");
+      // You might need to add: memberData.category = 'Some Default Category' if you can derive it.
+    }
+
     navigate('/add', { state: { member: memberData } });
   };
-
   // Apply filters
   const filteredMembers = React.useMemo(() => {
     let result = members;
@@ -77,7 +120,7 @@ const MemberList = () => {
     return (
       <div className="flex items-center justify-center min-h-64">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-[#800000] mx-auto mb-4" /> {/* UPDATED COLOR */}
+          <Loader2 className="w-8 h-8 animate-spin text-[#800000] mx-auto mb-4" />
           <p className="text-gray-600">Loading members...</p>
         </div>
       </div>
@@ -89,7 +132,7 @@ const MemberList = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-[#333]">Members Directory</h2> {/* UPDATED TEXT */}
+          <h2 className="text-2xl font-bold text-[#333]">Members Directory</h2>
           <p className="text-gray-600 mt-1">
             {filteredMembers.length} of {members.length} members
             {filterStatus !== 'all' && ` • ${filterStatus}`}
@@ -101,7 +144,7 @@ const MemberList = () => {
           <button
             onClick={refresh}
             disabled={loading}
-            className="px-4 py-2 bg-[#800000] text-white rounded-lg hover:bg-[#600000] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2" /* UPDATED BG */
+            className="px-4 py-2 bg-[#800000] text-white rounded-lg hover:bg-[#600000] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
           >
             <span>Refresh</span>
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -119,7 +162,7 @@ const MemberList = () => {
             placeholder="Search members by name, email, NIC..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:border-transparent" /* UPDATED RING */
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:border-transparent"
           />
         </div>
 
@@ -129,7 +172,7 @@ const MemberList = () => {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:border-transparent" /* UPDATED RING */
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:border-transparent"
           >
             <option value="all">All Status</option>
             <option value="pending">Pending</option>
@@ -177,33 +220,38 @@ const MemberList = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  {/* UPDATED COLUMNS */}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Member
+                    Full Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Contact
+                    Designation
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Position
+                    Phone Number
+                  </th>
+                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Gender
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Location
+                    Email
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Joined
+                    Added Date
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="relative px-6 py-3">
-                    <span className="sr-only">Actions</span>
+                    <span className="sr-only">Verify</span>
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredMembers.map((member) => (
                   <tr key={member.id} className="hover:bg-gray-50">
-                    {/* Member Info */}
+                    
+                    {/* Full Name */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
@@ -214,7 +262,6 @@ const MemberList = () => {
                               alt={member.fullName}
                             />
                           ) : (
-                            /* UPDATED AVATAR GRADIENT */
                             <div className="h-10 w-10 rounded-full bg-gradient-to-r from-[#2563EB] to-[#800000] flex items-center justify-center">
                               <User className="h-5 w-5 text-white" />
                             </div>
@@ -224,48 +271,40 @@ const MemberList = () => {
                           <div className="text-sm font-medium text-gray-900">
                             {member.fullName}
                           </div>
-                          <div className="text-sm text-gray-500">
-                            {member.nicNumber || 'N/A'}
-                          </div>
+                          {/* Removed second line: member.nicNumber */}
                         </div>
                       </div>
                     </td>
 
-                    {/* Contact */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{member.email}</div>
-                      {member.phoneNumber && (
-                        <div className="flex items-center text-sm text-gray-500 mt-1">
-                          <Phone className="mr-1 h-3 w-3" />
-                          {member.phoneNumber}
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Position */}
+                    {/* Designation */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {member.designation}
+                        {member.designation || 'N/A'}
                       </div>
-                      {member.organizationType && (
-                        <div className="text-sm text-gray-500">
-                          {member.organizationType}
+                       {/* Removed second line: member.organizationType */}
+                    </td>
+                    
+                    {/* Phone Number */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                       <div className="flex items-center text-sm text-gray-900">
+                          <Phone className="mr-1 h-3 w-3 text-gray-500" />
+                          {member.phoneNumber || 'N/A'}
                         </div>
-                      )}
+                         {/* Removed second line: member.whatsappNumber */}
+                    </td>
+                    
+                    {/* Gender */}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {member.gender || 'N/A'}
+                       {/* Removed second line: member.age */}
                     </td>
 
-                    {/* Location */}
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">{member.district || 'N/A'}</div>
-                      {member.province && (
-                        <div className="flex items-center text-sm text-gray-500 mt-1">
-                          <MapPin className="mr-1 h-3 w-3" />
-                          {member.province}
-                        </div>
-                      )}
+                    {/* Email */}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {member.email || 'N/A'}
                     </td>
-
-                    {/* Joined */}
+                    
+                    {/* Added Date */}
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex items-center">
                         <Calendar className="mr-2 h-4 w-4 text-gray-400" />
@@ -273,9 +312,7 @@ const MemberList = () => {
                           {formatDistanceToNow(member.timestamp, { addSuffix: true })}
                         </span>
                       </div>
-                      {member.age && (
-                        <div className="text-xs text-gray-400 mt-1">{member.age} years old</div>
-                      )}
+                       {/* Removed second line: member.age */}
                     </td>
 
                     {/* Status */}
@@ -291,26 +328,28 @@ const MemberList = () => {
                       >
                         {member.status}
                       </span>
-                      <div className={`text-xs mt-1 ${
-                        member.isComplete ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {member.isComplete ? 'Complete' : 'Incomplete'}
-                      </div>
+                      {/* Removed second line: member.isComplete */}
                     </td>
 
-                    {/* Actions */}
+                    {/* Actions / Verify Button */}
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center space-x-2">
-                        {member.status === 'pending' && (
-                          <button 
-                            onClick={() => handleVerify(member)}
-                            className="text-green-600 hover:text-green-900 p-1 rounded-full hover:bg-green-50 flex items-center space-x-1"
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                            <span className="sr-only">Register</span>
-                          </button>
-                        )}
-                      </div>
+                      {member.status === 'pending' && (
+                        <button 
+                          onClick={() => handleVerify(member)}
+                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                        >
+                          <ShieldCheck className="h-4 w-4 mr-1" />
+                          Verify
+                        </button>
+                      )}
+                      {member.status !== 'pending' && (
+                        <button 
+                            disabled 
+                            className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-500 bg-gray-100 cursor-not-allowed"
+                        >
+                            {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -326,7 +365,7 @@ const MemberList = () => {
           <button
             onClick={loadMore}
             disabled={loadingMore}
-            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-[#800000] hover:bg-[#600000] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm" /* UPDATED BG */
+            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-[#800000] hover:bg-[#600000] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
           >
             {loadingMore ? (
               <>
