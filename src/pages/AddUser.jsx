@@ -141,13 +141,14 @@ const UserManagement = () => {
   );
 
   return (
-    <div className="min-h-screen bg-[#F4F7F8] p-6 font-sans"> {/* UPDATED BG */}
-      <div className="max-w-7xl mx-auto">
+    // ✅ FIX: Removed bg-[#F4F7F8]
+    <div className="min-h-screen p-6 font-sans">
+      <div className="">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-[#333]">User Management</h1> {/* UPDATED TEXT */}
+          <h1 className="text-3xl font-bold text-[#333]">User Management</h1>
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="flex items-center gap-2 bg-[#800000] text-white px-4 py-2 rounded-lg hover:bg-[#600000] transition" /* UPDATED BG */
+            className="flex items-center gap-2 bg-[#800000] text-white px-4 py-2 rounded-lg hover:bg-[#600000] transition"
           >
             <UserPlus size={20} />
             {showCreateForm ? "Close Form" : "Add User"}
@@ -170,8 +171,8 @@ const UserManagement = () => {
 
         {/* Create User Form */}
         {showCreateForm && (
-          <div className="bg-white p-6 rounded-lg shadow-lg mb-6 transition-all duration-300">
-            <h2 className="text-xl font-semibold text-[#333] mb-4">Add New User</h2> {/* UPDATED TEXT */}
+          <div className="bg-white p-6 rounded-xl shadow-lg mb-6 transition-all duration-300"> {/* Professional Touch: Softer shadow-xl */}
+            <h2 className="text-xl font-semibold text-[#333] mb-4">Add New User</h2>
             <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="flex flex-col">
                 <label htmlFor="newName" className="text-sm font-medium text-gray-600 mb-1">Name</label>
@@ -181,7 +182,7 @@ const UserManagement = () => {
                   placeholder="Enter name (optional)"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none" /* UPDATED RING */
+                  className="border border-gray-200 p-2 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none" /* Professional Touch: Lighter border */
                 />
               </div>
               <div className="flex flex-col">
@@ -192,7 +193,7 @@ const UserManagement = () => {
                   placeholder="Enter email"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  className="border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none" /* UPDATED RING */
+                  className="border border-gray-200 p-2 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none" /* Professional Touch: Lighter border */
                 />
               </div>
               <div className="flex flex-col">
@@ -203,7 +204,7 @@ const UserManagement = () => {
                   placeholder="Enter password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none" /* UPDATED RING */
+                  className="border border-gray-200 p-2 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none" /* Professional Touch: Lighter border */
                 />
               </div>
               <div className="flex flex-col md:flex-row items-end gap-2">
@@ -213,7 +214,7 @@ const UserManagement = () => {
                     id="newRole"
                     value={newRole}
                     onChange={(e) => setNewRole(e.target.value)}
-                    className="border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none" /* UPDATED RING */
+                    className="border border-gray-200 p-2 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none" /* Professional Touch: Lighter border */
                   >
                     <option value="user">User</option>
                     <option value="admin">Admin</option>
@@ -221,7 +222,7 @@ const UserManagement = () => {
                 </div>
                 <button
                   type="submit"
-                  className="bg-[#800000] text-white px-4 py-2 rounded-lg hover:bg-[#600000] transition w-full md:w-auto" /* UPDATED BG */
+                  className="bg-[#800000] text-white px-4 py-2 rounded-lg hover:bg-[#600000] transition w-full md:w-auto"
                 >
                   Create User
                 </button>
@@ -231,18 +232,18 @@ const UserManagement = () => {
         )}
 
         {/* Search Bar */}
-        <div className="flex items-center mb-6 bg-white p-4 rounded-lg shadow-md">
+        <div className="flex items-center mb-6 bg-white p-4 rounded-xl shadow-lg"> {/* Professional Touch: Softer shadow-xl */}
           <Search className="text-gray-400 mr-2" size={20} />
           <input
             type="text"
             placeholder="Search by email or name..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-grow p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#800000] focus:outline-none" /* UPDATED RING */
+            className="flex-grow p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-[#800000] focus:outline-none" /* Professional Touch: Lighter border */
           />
           <button
             onClick={fetchUsers}
-            className="ml-4 bg-[#800000] text-white px-4 py-2 rounded-lg hover:bg-[#600000] transition" /* UPDATED BG */
+            className="ml-4 bg-[#800000] text-white px-4 py-2 rounded-lg hover:bg-[#600000] transition"
           >
             Refresh
           </button>
@@ -251,14 +252,14 @@ const UserManagement = () => {
         {/* Users Table */}
         {loading ? (
           <div className="text-center text-gray-500 py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#800000] mx-auto"></div> {/* UPDATED BORDER */}
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#800000] mx-auto"></div>
             <p className="mt-2">Loading users...</p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden"> {/* Professional Touch: Softer shadow-xl */}
             <table className="w-full">
               <thead>
-                <tr className="bg-[#800000]/10 text-[#333] text-left text-sm uppercase tracking-wider"> {/* UPDATED BG/TEXT */}
+                <tr className="bg-[#800000]/10 text-[#333] text-left text-sm uppercase tracking-wider">
                   <th className="p-4">Name</th>
                   <th className="p-4">Email</th>
                   <th className="p-4">Role</th>
@@ -270,7 +271,7 @@ const UserManagement = () => {
                 {filteredUsers.map((user, index) => (
                   <tr
                     key={user.id}
-                    className={`border-t ${index % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-[#800000]/5 transition`} /* UPDATED HOVER */
+                    className={`border-t ${index % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-[#800000]/5 transition`}
                   >
                     <td className="p-4">{user.user_metadata?.name || "—"}</td>
                     <td className="p-4">{user.email}</td>
@@ -278,7 +279,7 @@ const UserManagement = () => {
                       <select
                         value={user.user_metadata?.role || "user"}
                         onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                        className="border border-gray-300 p-1 rounded-lg bg-white focus:ring-2 focus:ring-[#800000] focus:outline-none" /* UPDATED RING */
+                        className="border border-gray-200 p-1 rounded-lg bg-white focus:ring-2 focus:ring-[#800000] focus:outline-none" /* Professional Touch: Lighter border */
                       >
                         <option value="user">User</option>
                         <option value="admin">Admin</option>

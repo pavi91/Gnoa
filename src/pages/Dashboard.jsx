@@ -77,8 +77,8 @@ export default function GNOADashboard() {
   }, []);
 
   return (
-    // Outer container with light grey background (Matches Template #F4F7F8)
-    <div className="flex-grow bg-[#f4f7f8] p-2 md:p-3">
+    // ✅ FIX: Removed the "bg-[#f4f7f8]" class from this div
+    <div className="flex-grow p-2 md:p-3">
       <div className="max-w-7xl mx-auto">
         {/* Welcome Header - UPDATED GRADIENT */}
         <div

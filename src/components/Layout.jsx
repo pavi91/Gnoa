@@ -36,7 +36,8 @@ const Layout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+    // 1. Overall screen background (Set to White)
+    <div className="min-h-screen bg-white"> 
       <div className="flex">
         {/* Desktop Sidebar */}
         <Sidebar
@@ -58,7 +59,8 @@ const Layout = () => {
         />
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-h-screen">
+        {/* 2. Main content wrapper (Set to White) */}
+        <div className="flex-1 flex flex-col min-h-screen bg-white"> 
           <Header 
             onMenuClick={handleMobileMenuToggle} 
             user={user} // Pass user info to header
@@ -66,10 +68,9 @@ const Layout = () => {
           />
           
           {/* Page Content - This is where routed components will be injected */}
-          <main className="flex-1 overflow-y-auto bg-gradient-to-br from-gray-50/50 via-white to-blue-50/30">
+          <main className="flex-1 overflow-y-auto bg-white">
             <div className="p-4 sm:p-6 lg:p-8">
-              <div className="max-w-7xl mx-auto">
-                {/* Outlet renders the matched route component */}
+              <div className=""> 
                 <Outlet />
               </div>
             </div>

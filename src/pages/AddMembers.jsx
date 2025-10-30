@@ -404,8 +404,9 @@ const AddAppliedMembers = () => {
 
 
   return (
-    <div className="min-h-screen bg-[#F4F7F8] py-12 px-4">
-      <div className="max-w-4xl mx-auto">
+    // ✅ FIX: Removed bg-[#F4F7F8] to let the white Layout background show through
+    <div className="min-h-screen py-12 px-4">
+      <div className="max-w-7xl mx-auto">
         <div className="bg-white shadow-xl rounded-2xl overflow-hidden">
           <div className="bg-gradient-to-r from-[#2563EB] to-[#800000] px-8 py-6">
             <h1 className="text-3xl font-bold text-white text-center">
@@ -829,52 +830,7 @@ const AddAppliedMembers = () => {
         </div>
 
         {/* // --- APPLIED MEMBERS LIST SECTION (COMMENTED OUT) ---
-          {appliedMembers.length > 0 && (
-            <div className="mt-8 bg-white shadow-xl rounded-2xl overflow-hidden">
-              <div className="bg-[#2563EB] px-8 py-4">
-                <h3 className="text-2xl font-bold text-white">Applied Members ({appliedMembers.length})</h3>
-              </div>
-              <div className="p-6 space-y-4">
-                {appliedMembers.map((m) => (
-                  <div key={m.id} className="border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
-                    <div className="flex justify-between items-start mb-4">
-                      <h4 className="text-lg font-semibold text-gray-800">{m.name_in_full || "N/A"}</h4>
-                      <button
-                        onClick={() => handleRemoveMember(m.id)}
-                        className="text-red-500 hover:text-red-700 transition-colors"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div><span className="font-medium text-gray-700">Email:</span> <span className="text-gray-600">{m.email || "N/A"}</span></div>
-                      <div><span className="font-medium text-gray-700">Phone:</span> <span className="text-gray-600">{m.phone_number_personal || "N/A"}</span></div>
-                      <div><span className="font-medium text-gray-700">Designation:</span> <span className="text-gray-600">{m.designation || "N/A"}</span></div>
-                      <div><span className="font-medium text-gray-700">Province:</span> <span className="text-gray-600">{m.province_work_place || "N/A"}</span></div>
-                      <div><span className="font-medium text-gray-700">District:</span> <span className="text-gray-600">{m.district_work_place || "N/A"}</span></div>
-                      <div><span className="font-medium text-gray-700">Institution:</span> <span className="text-gray-600">{m.type_of_organization_hospital || "N/A"}</span></div>
-                      <div><span className="font-medium text-gray-700">Employment No:</span> <span className="text-gray-600">{m.employment_number_salary_number || "N/A"}</span></div>
-                      <div><span className="font-medium text-gray-700">University:</span> <span className="text-gray-600">{m.college_of_nursing_university || "N/A"}</span></div>
-                    </div>
-                    
-                    {m.signature && (
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <span className="font-medium text-gray-700">Signature:</span>
-                        <img
-                          src={getEmbedUrl(m.signature)} // Use embeddable link for preview
-                          alt="Signature"
-                          className="mt-2 h-12 w-32 object-contain border border-gray-300 rounded cursor-pointer"
-                          onClick={() => handleImageClick(m.signature)} // Handle click to open full size
-                          title="Click to view full image"
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          // --- END APPLIED MEMBERS LIST SECTION (COMMENTED OUT) ---
+          ... (This section remains commented out) ...
         */}
       </div>
 
