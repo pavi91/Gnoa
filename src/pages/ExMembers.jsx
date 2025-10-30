@@ -125,13 +125,14 @@ const ExMember = () => {
   const totalPages = Math.ceil(total / limit);
 
   return (
-    <div className="p-6 bg-[#F4F7F8] min-h-screen"> {/* UPDATED BG */}
-      <div className="max-w-7xl mx-auto">
-        <h2 className="text-3xl font-bold text-[#333] mb-8">Member Directory</h2> {/* UPDATED TEXT */}
+    // ✅ FIX: Removed bg-[#F4F7F8]
+    <div className="p-6 min-h-screen">
+      <div className="">
+        <h2 className="text-3xl font-bold text-[#333] mb-8">Member Directory</h2>
 
         {/* Filter Section */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-          <h3 className="text-xl font-semibold text-[#333] mb-4">Filters</h3> {/* UPDATED TEXT */}
+        <div className="bg-white rounded-xl shadow-xl p-6 mb-8"> {/* Professional Touch: Softer shadow-xl */}
+          <h3 className="text-xl font-semibold text-[#333] mb-4">Filters</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">Name</label>
@@ -141,7 +142,7 @@ const ExMember = () => {
                 placeholder="Search by Name"
                 value={filters.name}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* UPDATED RING */
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* Professional Touch: Lighter border */
               />
             </div>
             <div>
@@ -152,7 +153,7 @@ const ExMember = () => {
                 placeholder="Search by Email"
                 value={filters.email}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* UPDATED RING */
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* Professional Touch: Lighter border */
               />
             </div>
             <div>
@@ -161,7 +162,7 @@ const ExMember = () => {
                 name="gender"
                 value={filters.gender}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* UPDATED RING */
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* Professional Touch: Lighter border */
               >
                 <option value="">All Genders</option>
                 <option value="Male">Male</option>
@@ -177,7 +178,7 @@ const ExMember = () => {
                 placeholder="Search by Designation"
                 value={filters.designation}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* UPDATED RING */
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* Professional Touch: Lighter border */
               />
             </div>
             <div>
@@ -188,7 +189,7 @@ const ExMember = () => {
                 placeholder="Search by NIC"
                 value={filters.nic}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* UPDATED RING */
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* Professional Touch: Lighter border */
               />
             </div>
             <div>
@@ -199,7 +200,7 @@ const ExMember = () => {
                 placeholder="Search by Phone"
                 value={filters.phone}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* UPDATED RING */
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* Professional Touch: Lighter border */
               />
             </div>
             <div>
@@ -210,7 +211,7 @@ const ExMember = () => {
                 placeholder="Search by Address"
                 value={filters.address}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* UPDATED RING */
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* Professional Touch: Lighter border */
               />
             </div>
             <div>
@@ -220,7 +221,7 @@ const ExMember = () => {
                 name="dateFrom"
                 value={filters.dateFrom}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* UPDATED RING */
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* Professional Touch: Lighter border */
               />
             </div>
             <div>
@@ -230,7 +231,7 @@ const ExMember = () => {
                 name="dateTo"
                 value={filters.dateTo}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* UPDATED RING */
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] focus:border-[#800000]" /* Professional Touch: Lighter border */
               />
             </div>
           </div>
@@ -239,7 +240,7 @@ const ExMember = () => {
           <div className="flex flex-wrap gap-4 mt-6">
             <button
               onClick={applyFilters}
-              className="flex items-center bg-[#800000] text-white px-6 py-3 rounded-lg hover:bg-[#600000] transition duration-200 font-medium" /* UPDATED BG */
+              className="flex items-center bg-[#800000] text-white px-6 py-3 rounded-lg hover:bg-[#600000] transition duration-200 font-medium"
             >
               <Search className="w-5 h-5 mr-2" /> Apply Filters
             </button>
@@ -253,7 +254,7 @@ const ExMember = () => {
         </div>
 
         {/* Data Table */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+        <div className="bg-white rounded-xl shadow-xl overflow-hidden"> {/* Professional Touch: Softer shadow-xl */}
           {loading ? (
             <div className="p-8 text-center text-gray-500 font-medium">Loading members...</div>
           ) : members.length === 0 ? (
@@ -261,7 +262,7 @@ const ExMember = () => {
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-[#2563EB]"> {/* UPDATED THEAD BG */}
+                <thead className="bg-[#2563EB]"> {/* Professional Touch: Consistent blue header */}
                   <tr>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Name</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-white">Email</th>
@@ -275,7 +276,7 @@ const ExMember = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {members.map((m) => (
-                    <tr key={m.id} className="hover:bg-[#800000]/5 transition duration-150"> {/* UPDATED HOVER */}
+                    <tr key={m.id} className="hover:bg-[#800000]/5 transition duration-150">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{m.name_in_full || "-"}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{m.email || "-"}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{m.gender || "-"}</td>
@@ -296,14 +297,14 @@ const ExMember = () => {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex justify-between items-center mt-6 bg-white rounded-xl shadow-md p-4">
+          <div className="flex justify-between items-center mt-6 bg-white rounded-xl shadow-xl p-4"> {/* Professional Touch: Softer shadow-xl */}
             <button
               disabled={page === 1}
               onClick={() => setPage((p) => p - 1)}
               className={`px-6 py-3 rounded-lg font-medium transition duration-200 ${
                 page === 1
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : "bg-[#800000] text-white hover:bg-[#600000]" /* UPDATED BG/HOVER */
+                  : "bg-[#800000] text-white hover:bg-[#600000]"
               }`}
             >
               Previous
@@ -317,7 +318,7 @@ const ExMember = () => {
               className={`px-6 py-3 rounded-lg font-medium transition duration-200 ${
                 page === totalPages
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : "bg-[#800000] text-white hover:bg-[#600000]" /* UPDATED BG/HOVER */
+                  : "bg-[#800000] text-white hover:bg-[#600000]"
               }`}
             >
               Next
