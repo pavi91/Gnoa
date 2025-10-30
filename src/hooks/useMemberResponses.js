@@ -18,15 +18,18 @@ export const useMemberResponses = () => {
       setMembers([]);
     }
 
-    setLoading(!reset);
+    // Use setLoadingMore if it's not a reset
+    if (reset) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
     setError(null);
 
     try {
       let query = supabase
         .from('form_responses')
-        .select(`
-          *
-        `)
+        .select(`*`) // ✅ Fetches all columns from form_responses, including payload
         .order('created_at', { ascending: false })
         .limit(PAGE_SIZE);
 
@@ -44,18 +47,8 @@ export const useMemberResponses = () => {
       console.log(data);
       
       // Map each response to member object
-      const mappedMembers = data?.map(response => {
-        const member = mapFormResponseToMember(response);
-        // Add profile info if available
-        if (response.profiles) {
-          member.profile = {
-            email: response.profiles.email,
-            fullName: response.profiles.full_name || member.fullName,
-            avatarUrl: response.profiles.avatar_url
-          };
-        }
-        return member;
-      }) || [];
+      // ✅ Removed the 'response.profiles' block as requested.
+      const mappedMembers = data?.map(mapFormResponseToMember) || [];
 
       console.log(`👥 Mapped ${mappedMembers.length} members:`, mappedMembers);
       console.table(mappedMembers.map(m => ({
@@ -84,7 +77,7 @@ export const useMemberResponses = () => {
   // Fetch more members
   const loadMore = async () => {
     if (loadingMore || !hasMore) return;
-    setLoadingMore(true);
+    // setLoadingMore(true); // This is now handled inside fetchMembers
     await fetchMembers(false);
   };
 

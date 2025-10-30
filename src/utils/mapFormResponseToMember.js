@@ -1,5 +1,13 @@
 export const mapFormResponseToMember = (formResponse) => {
-  const data = formResponse.payload || {}; // ✅ all form fields are in payload
+  // We still need the payload for 'Date of birth' and 'First appoinment date'
+  // as they are not listed as generated columns in your SQL.
+  const data = formResponse.payload || {}; 
+
+  // --- Calculate dates from payload ---
+  const dateOfBirth = data['Date of birth'] ? new Date(data['Date of birth']) : null;
+  const firstAppointmentDate = data['First appoinment date']
+    ? new Date(data['First appoinment date'])
+    : null;
 
   // Base member object structure
   const member = {
@@ -9,55 +17,60 @@ export const mapFormResponseToMember = (formResponse) => {
     created_at: formResponse.created_at,
     updated_at: formResponse.updated_at || null,
 
+    // --- MAPPED FROM DIRECT COLUMNS ---
+
     // Personal Information
-    fullName: data['Name in full '] || 'Unknown',
-    email: data.Email || 'N/A',
-    phoneNumber: data['Phone number (personal)'] || null,
-    whatsappNumber: data['whatsApp Number'] || null,
-    nicNumber: data['NIC number '] 
-        ? String(data['NIC number ']).trim() 
+    fullName: formResponse.name_in_full || 'Unknown',
+    email: formResponse.email || 'N/A',
+    phoneNumber: formResponse.phone_number_personal || null,
+    whatsappNumber: formResponse.whatsapp_number || null,
+    nicNumber: formResponse.nic_number 
+        ? String(formResponse.nic_number).trim() 
         : null,
-    gender: data.Gender || null,
-    maritalStatus: data['Marital status'] || null,
-    dateOfBirth: data['Date of birth'] ? new Date(data['Date of birth']) : null,
+    gender: formResponse.gender || null,
+    maritalStatus: formResponse.marital_status || null,
 
     // Addresses
-    personalAddress: data['Personal address'] || null,
-    officialAddress: data['Official Address'] || null,
+    personalAddress: formResponse.personal_address || null,
+    officialAddress: formResponse.official_address || null,
 
     // Professional Information
-    designation: data.Designation || null,
-    employmentNumber: data['Employment number/Salary Number'] || null,
-    nursingCouncilNumber: data['Nursing council registration Nnumber'] || null,
-    educationalQualifications: data['Educational qualifications'] || null,
-    collegeUniversity: data['Your College of Nursing/University'] || null,
-    specialties: data['Scialities (Special trainings) - If applicable ']
-      ? data['Scialities (Special trainings) - If applicable '].split(',')
+    designation: formResponse.designation || null,
+    employmentNumber: formResponse.employment_number_salary_number || null,
+    nursingCouncilNumber: formResponse.nursing_council_registration_number || null,
+    educationalQualifications: formResponse.educational_qualifications || null,
+    collegeUniversity: formResponse.college_of_nursing_university || null,
+    specialties: formResponse.specialties_special_trainings
+      ? formResponse.specialties_special_trainings.split(',')
       : [],
 
     // Work Information
-    organizationType: data['Type of the Organization/Hospital '] || null,
-    district: data['District (Work Place)'] || null,
-    province: data['Province (Work Place)'] || null,
-    rdhs: data['RDHS (if applicable) '] || null,
-    firstAppointmentDate: data['First appoinment date']
-      ? new Date(data['First appoinment date'])
-      : null,
+    organizationType: formResponse.type_of_organization_hospital || null,
+    district: formResponse.district_work_place || null,
+    province: formResponse.province_work_place || null,
+    rdhs: formResponse.rdhs || null,
 
     // Signature
-    signatureUrl: data['Signature (Please upload a photo your siganture here)'] || null,
+    signatureUrl: formResponse.signature || null,
 
-    // Computed fields
-    age: data['Date of birth']
-      ? Math.floor((new Date() - new Date(data['Date of birth'])) / (365.25 * 24 * 60 * 60 * 1000))
+    // --- MAPPED FROM PAYLOAD (because not generated columns) ---
+    dateOfBirth: dateOfBirth,
+    firstAppointmentDate: firstAppointmentDate,
+
+    // --- COMPUTED FIELDS ---
+    age: dateOfBirth
+      ? Math.floor((new Date() - dateOfBirth.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
       : null,
-    isComplete: isFormComplete(data),
-    timestamp: formResponse.Timestamp
-      ? new Date(formResponse.Timestamp)
+      
+    // Pass both the direct columns and payload data to the helper
+    isComplete: isFormComplete(formResponse, data), 
+    
+    timestamp: formResponse.timestamp // Use the lowercase 'timestamp' generated column
+      ? new Date(formResponse.timestamp)
       : new Date(formResponse.created_at),
   };
 
-  console.log('🔄 Mapped member data:', {
+  console.log('🔄 Mapped member data (from direct columns):', {
     id: member.id,
     fullName: member.fullName,
     email: member.email,
@@ -70,17 +83,19 @@ export const mapFormResponseToMember = (formResponse) => {
   return member;
 };
 
+// --- CORRECTED HELPER FUNCTION ---
 // Helper function to check if form is complete
-const isFormComplete = (data) => {
+// It must now check the direct columns (from formResponse) and the payload (for dates)
+const isFormComplete = (formResponse, data) => {
   const requiredFields = [
-    data.Email,
-    data['Name in full '],
-    data['NIC number '],
-    data['Date of birth'],
-    data.Designation,
-    data['Phone number (personal)'],
-    data['Educational qualifications'],
-    data['Nursing council registration Nnumber']
+    formResponse.email, // from direct column
+    formResponse.name_in_full, // from direct column
+    formResponse.nic_number, // from direct column
+    data['Date of birth'], // from payload
+    formResponse.designation, // from direct column
+    formResponse.phone_number_personal, // from direct column
+    formResponse.educational_qualifications, // from direct column
+    formResponse.nursing_council_registration_number // from direct column
   ];
 
   return requiredFields.every(field => field && field.toString().trim() !== '');

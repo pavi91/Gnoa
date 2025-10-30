@@ -3,7 +3,7 @@ import { Search, Upload, Check, X } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { supabase } from '../supabaseClient';
 
-// --- SearchableDropdown Component ---
+// --- SearchableDropdown Component (Unchanged) ---
 const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -79,7 +79,6 @@ const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
 // --- AddAppliedMembers Component ---
 const AddAppliedMembers = () => {
   const location = useLocation();
-  // The incoming data from navigation state, using 'member' key.
   const prefillMember = location.state?.member || {}; 
 
   const [formData, setFormData] = useState({
@@ -108,6 +107,7 @@ const AddAppliedMembers = () => {
     nicNumber: "",
   });
 
+  // NOTE: Keeping state definitions even if the display section is commented out.
   const [appliedMembers, setAppliedMembers] = useState([]);
   const [categories, setCategories] = useState([]);
   const [provinces, setProvinces] = useState([]);
@@ -156,7 +156,7 @@ const AddAppliedMembers = () => {
         ],
       });
 
-      // Fetch applied members
+      // Fetch applied members (still needed for initial data sync/cleanup)
       const { data: membersData, error: membersError } = await supabase.from("form_responses").select("*");
       if (membersError) console.error(membersError);
       else setAppliedMembers(membersData);
@@ -207,25 +207,24 @@ const AddAppliedMembers = () => {
     fetchInstitutions();
   }, [formData.category, formData.province, formData.district, categories, provinces, districts]);
 
-  // --- START OF CORRECTION ---
+  // --- PREFILL LOGIC ---
   useEffect(() => {
     if (Object.keys(prefillMember).length > 0) {
-      // Map the incoming data keys (e.g., fullName, mobile) to the state keys (e.g., nameInFull, phonePersonal)
       setFormData(prev => ({
         ...prev,
         // Personal Information
-        nameInFull: prefillMember.fullName || "", // MAPPED: fullName -> nameInFull
+        nameInFull: prefillMember.fullName || "",
         email: prefillMember.email || "", 
-        officialAddress: prefillMember.officialAddress || "", // MAPPED: officialAddress -> officialAddress
-        personalAddress: prefillMember.personalAddress || "", // MAPPED: personalAddress -> personalAddress
+        officialAddress: prefillMember.officialAddress || "",
+        personalAddress: prefillMember.personalAddress || "",
         dob: prefillMember.dob || "", 
-        phonePersonal: prefillMember.mobile || "", // MAPPED: mobile -> phonePersonal
+        phonePersonal: prefillMember.mobile || "", 
         whatsappNumber: prefillMember.whatsappNumber || "", 
         gender: prefillMember.gender || "", 
         maritalStatus: prefillMember.maritalStatus || "", 
         nicNumber: prefillMember.nicNumber || "", 
 
-        // Designation & Work Place (Assuming these keys match if passed)
+        // Designation & Work Place
         category: prefillMember.category || "", 
         designation: prefillMember.designation || "",
         province: prefillMember.province || "",
@@ -235,18 +234,18 @@ const AddAppliedMembers = () => {
 
         // Employment Details
         firstAppointmentDate: prefillMember.firstAppointmentDate || "", 
-        employmentNumber: prefillMember.employmentNumber || "", // MAPPED: employmentNumber -> employmentNumber
-        collegeOfNursing: prefillMember.university || "", // MAPPED: university -> collegeOfNursing
+        employmentNumber: prefillMember.employmentNumber || "",
+        collegeOfNursing: prefillMember.university || "",
         nursingCouncilReg: prefillMember.nursingCouncilReg || "", 
         educationalQuals: prefillMember.educationalQuals || "",
         specialties: prefillMember.specialties || "",
 
         // Signature
-        signature: prefillMember.signature || null, // MAPPED: signature -> signature
+        signature: prefillMember.signature || null, 
       }));
     }
   }, [prefillMember]);
-  // --- END OF CORRECTION ---
+  // --- END PREFILL LOGIC ---
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -298,14 +297,12 @@ const AddAppliedMembers = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Payload for DB insertion (ensure keys match DB columns)
     const responseData = {
-      // NOTE: payload field is removed as it wasn't necessary for this data structure.
       email: formData.email,
       gender: formData.gender,
       designation: formData.designation,
       nic_number: formData.nicNumber,
-      name_in_full: formData.nameInFull, // Correct column name used
+      name_in_full: formData.nameInFull, 
       marital_status: formData.maritalStatus,
       whatsapp_number: formData.whatsappNumber,
       official_address: formData.officialAddress,
@@ -322,7 +319,6 @@ const AddAppliedMembers = () => {
       specialties_special_trainings: formData.specialties,
       signature: formData.signature,
       timestamp: new Date().toISOString(),
-      // Adding DOB and First Appointment Date to the direct DB columns if they exist
       dob: formData.dob, 
       first_appointment_date: formData.firstAppointmentDate,
     };
@@ -330,7 +326,7 @@ const AddAppliedMembers = () => {
     const { error } = await supabase.from("form_responses").insert([responseData]);
     if (error) console.error("Supabase Insert Error:", error);
     else {
-      // Refetch applied members
+      // NOTE: We refetch applied members but no longer display them.
       const { data, error: fetchError } = await supabase.from("form_responses").select("*");
       if (fetchError) console.error(fetchError);
       else setAppliedMembers(data);
@@ -371,6 +367,41 @@ const AddAppliedMembers = () => {
       setAppliedMembers(appliedMembers.filter(m => m.id !== id));
     }
   };
+
+
+  // --- NEW SIGNATURE HELPER FUNCTIONS ---
+  const getEmbedUrl = (url) => {
+    if (!url || url.startsWith('data:')) {
+      return url;
+    }
+    if (url.includes('drive.google.com')) {
+      let fileId = null;
+      const openMatch = url.match(/id=([^&]+)/);
+      const dMatch = url.match(/\/d\/([^/]+)/);
+
+      if (openMatch && openMatch[1]) {
+        fileId = openMatch[1];
+      } else if (dMatch && dMatch[1]) {
+        fileId = dMatch[1];
+      }
+
+      if (fileId) {
+        return `https://drive.google.com/uc?export=view&id=${fileId}`;
+      }
+    }
+    return url; 
+  };
+
+  const handleImageClick = (url) => {
+    if (url && url.includes('drive.google.com')) {
+      window.open(url, '_blank');
+    } else if (url && url.startsWith('data:')) {
+      const newWindow = window.open();
+      newWindow.document.write(`<img src="${url}" alt="Signature" style="max-width: 100%; height: auto;">`);
+    }
+  };
+  // --- END NEW SIGNATURE HELPER FUNCTIONS ---
+
 
   return (
     <div className="min-h-screen bg-[#F4F7F8] py-12 px-4">
@@ -768,16 +799,20 @@ const AddAppliedMembers = () => {
                       className="hidden"
                     />
                   </label>
+                  {/* --- PREVIEW LOGIC (Form Data) --- */}
                   {formData.signature && (
                     <div className="flex items-center gap-2">
                       <Check className="w-5 h-5 text-green-600" />
                       <img
-                        src={formData.signature}
-                        alt="Signature"
-                        className="h-12 w-32 object-contain border border-gray-300 rounded"
+                        src={getEmbedUrl(formData.signature)} // Use embeddable link for preview
+                        alt="Signature Preview"
+                        className="h-12 w-32 object-contain border border-gray-300 rounded cursor-pointer"
+                        onClick={() => handleImageClick(formData.signature)} // Handle click to open full size
+                        title="Click to view full image"
                       />
                     </div>
                   )}
+                  {/* --- END PREVIEW LOGIC --- */}
                 </div>
               </div>
             </div>
@@ -793,48 +828,54 @@ const AddAppliedMembers = () => {
           </div>
         </div>
 
-        {appliedMembers.length > 0 && (
-          <div className="mt-8 bg-white shadow-xl rounded-2xl overflow-hidden">
-            <div className="bg-[#2563EB] px-8 py-4">
-              <h3 className="text-2xl font-bold text-white">Applied Members ({appliedMembers.length})</h3>
-            </div>
-            <div className="p-6 space-y-4">
-              {appliedMembers.map((m) => (
-                <div key={m.id} className="border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
-                  <div className="flex justify-between items-start mb-4">
-                    <h4 className="text-lg font-semibold text-gray-800">{m.name_in_full || "N/A"}</h4>
-                    <button
-                      onClick={() => handleRemoveMember(m.id)}
-                      className="text-red-500 hover:text-red-700 transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div><span className="font-medium text-gray-700">Email:</span> <span className="text-gray-600">{m.email || "N/A"}</span></div>
-                    <div><span className="font-medium text-gray-700">Phone:</span> <span className="text-gray-600">{m.phone_number_personal || "N/A"}</span></div>
-                    <div><span className="font-medium text-gray-700">Designation:</span> <span className="text-gray-600">{m.designation || "N/A"}</span></div>
-                    <div><span className="font-medium text-gray-700">Province:</span> <span className="text-gray-600">{m.province_work_place || "N/A"}</span></div>
-                    <div><span className="font-medium text-gray-700">District:</span> <span className="text-gray-600">{m.district_work_place || "N/A"}</span></div>
-                    <div><span className="font-medium text-gray-700">Institution:</span> <span className="text-gray-600">{m.type_of_organization_hospital || "N/A"}</span></div>
-                    <div><span className="font-medium text-gray-700">Employment No:</span> <span className="text-gray-600">{m.employment_number_salary_number || "N/A"}</span></div>
-                    <div><span className="font-medium text-gray-700">University:</span> <span className="text-gray-600">{m.college_of_nursing_university || "N/A"}</span></div>
-                  </div>
-                  {m.signature && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <span className="font-medium text-gray-700">Signature:</span>
-                      <img
-                        src={m.signature}
-                        alt="Signature"
-                        className="mt-2 h-12 w-32 object-contain border border-gray-300 rounded"
-                      />
+        {/* // --- APPLIED MEMBERS LIST SECTION (COMMENTED OUT) ---
+          {appliedMembers.length > 0 && (
+            <div className="mt-8 bg-white shadow-xl rounded-2xl overflow-hidden">
+              <div className="bg-[#2563EB] px-8 py-4">
+                <h3 className="text-2xl font-bold text-white">Applied Members ({appliedMembers.length})</h3>
+              </div>
+              <div className="p-6 space-y-4">
+                {appliedMembers.map((m) => (
+                  <div key={m.id} className="border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
+                    <div className="flex justify-between items-start mb-4">
+                      <h4 className="text-lg font-semibold text-gray-800">{m.name_in_full || "N/A"}</h4>
+                      <button
+                        onClick={() => handleRemoveMember(m.id)}
+                        className="text-red-500 hover:text-red-700 transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
                     </div>
-                  )}
-                </div>
-              ))}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div><span className="font-medium text-gray-700">Email:</span> <span className="text-gray-600">{m.email || "N/A"}</span></div>
+                      <div><span className="font-medium text-gray-700">Phone:</span> <span className="text-gray-600">{m.phone_number_personal || "N/A"}</span></div>
+                      <div><span className="font-medium text-gray-700">Designation:</span> <span className="text-gray-600">{m.designation || "N/A"}</span></div>
+                      <div><span className="font-medium text-gray-700">Province:</span> <span className="text-gray-600">{m.province_work_place || "N/A"}</span></div>
+                      <div><span className="font-medium text-gray-700">District:</span> <span className="text-gray-600">{m.district_work_place || "N/A"}</span></div>
+                      <div><span className="font-medium text-gray-700">Institution:</span> <span className="text-gray-600">{m.type_of_organization_hospital || "N/A"}</span></div>
+                      <div><span className="font-medium text-gray-700">Employment No:</span> <span className="text-gray-600">{m.employment_number_salary_number || "N/A"}</span></div>
+                      <div><span className="font-medium text-gray-700">University:</span> <span className="text-gray-600">{m.college_of_nursing_university || "N/A"}</span></div>
+                    </div>
+                    
+                    {m.signature && (
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <span className="font-medium text-gray-700">Signature:</span>
+                        <img
+                          src={getEmbedUrl(m.signature)} // Use embeddable link for preview
+                          alt="Signature"
+                          className="mt-2 h-12 w-32 object-contain border border-gray-300 rounded cursor-pointer"
+                          onClick={() => handleImageClick(m.signature)} // Handle click to open full size
+                          title="Click to view full image"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+          // --- END APPLIED MEMBERS LIST SECTION (COMMENTED OUT) ---
+        */}
       </div>
 
       <style>{`

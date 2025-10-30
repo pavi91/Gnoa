@@ -37,29 +37,70 @@ const MemberList = () => {
   } = useMemberResponses();
 
   // Navigate to AddAppliedMembers with member data
+  const getValidMaritalStatus = (status) => {
+    if (status === 'Yes' || status === 'Married') return 'Married';
+    if (status === 'No' || status === 'Single') return 'Single';
+    // Add other known bad values
+    
+    // Check if it's already a valid value
+    if (['Single', 'Married', 'Divorced', 'Widowed'].includes(status)) {
+      return status;
+    }
+    
+    return ""; // Default to empty
+  };
+
+  // Navigate to AddAppliedMembers with member data
   const handleVerify = (member) => {
     // Map fields to match AddAppliedMembers formData
     const memberData = {
+      // --- Personal Info ---
       fullName: member.fullName || '',
       email: member.email || '',
-      designation: member.designation || '',
+      nicNumber: member.nicNumber || '',
+      dob: member.dateOfBirth ? new Date(member.dateOfBirth).toISOString().split('T')[0] : '',
+      mobile: member.phoneNumber || '',
+      whatsappNumber: member.whatsappNumber || '', // <-- ADDED
+      gender: member.gender || '',
+
+      maritalStatus: getValidMaritalStatus(member.maritalStatus),
+      
       officialAddress: member.officialAddress || '',
       personalAddress: member.personalAddress || '',
-      dob: member.dateOfBirth ? new Date(member.dateOfBirth).toISOString().split('T')[0] : '', // Changed member.dob to member.dateOfBirth
+
+      // --- Designation & Work Place ---
+      // Note: We prefill the *value* of designation/institution.
+      // The user may need to re-select Category/Province/District 
+      // to re-populate the dropdowns if they wish to change them.
+      designation: member.designation || '',
+      province: member.province || '',             // <-- ADDED
+      district: member.district || '',           // <-- ADDED
+      rdhs: member.rdhs || '',                   // <-- ADDED
+      institution: member.organizationType || '',  // <-- MAPPED (organizationType -> institution)
+
+      // --- Employment Details ---
       firstAppointmentDate: member.firstAppointmentDate 
         ? new Date(member.firstAppointmentDate).toISOString().split('T')[0] 
         : '',
-      mobile: member.phoneNumber || '', // Map phoneNumber to mobile
-      gender: member.gender || '',
-      maritalStatus: member.maritalStatus || '',
       employmentNumber: member.employmentNumber || '',
-      university: member.collegeUniversity || '', // Changed member.university to member.collegeUniversity
-      nicNumber: member.nicNumber || '', // Include NIC number
-      signature: member.signatureUrl || null, // Changed signature to signatureUrl
+      university: member.collegeUniversity || '',
+      nursingCouncilReg: member.nursingCouncilNumber || '', // <-- MAPPED (nursingCouncilNumber -> nursingCouncilReg)
+      educationalQuals: member.educationalQualifications || '', // <-- MAPPED (educationalQualifications -> educationalQuals)
+      specialties: member.specialties ? member.specialties.join(', ') : '', // <-- MAPPED (array -> string)
+
+      // --- Signature ---
+      signature: member.signatureUrl || null,
     };
+    
+    // The category is missing, so we'll log a warning if it's not in the member object.
+    // The AddMembers form logic depends on it.
+    if (!member.category) {
+      console.warn("Warning: Navigating without a 'category'. Dropdown logic in AddMembers may be incomplete.");
+      // You might need to add: memberData.category = 'Some Default Category' if you can derive it.
+    }
+
     navigate('/add', { state: { member: memberData } });
   };
-
   // Apply filters
   const filteredMembers = React.useMemo(() => {
     let result = members;
