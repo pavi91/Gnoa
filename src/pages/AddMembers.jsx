@@ -3,6 +3,7 @@ import { Search, Upload, Check, X } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { supabase } from '../supabaseClient';
 
+// --- SearchableDropdown Component ---
 const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -28,7 +29,7 @@ const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
     <div className="relative" ref={dropdownRef}>
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className="mt-1 block w-full bg-white border border-gray-300 rounded-lg p-3 cursor-pointer hover:border-[#2563EB] transition-colors" /* UPDATED HOVER */
+        className="mt-1 block w-full bg-white border border-gray-300 rounded-lg p-3 cursor-pointer hover:border-[#2563EB] transition-colors"
       >
         <div className="flex items-center justify-between">
           <span className={selectedOption ? "text-gray-900" : "text-gray-400"}>
@@ -46,7 +47,7 @@ const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB]" /* UPDATED RING */
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
               autoFocus
             />
           </div>
@@ -75,9 +76,11 @@ const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
   );
 };
 
+// --- AddAppliedMembers Component ---
 const AddAppliedMembers = () => {
   const location = useLocation();
-  const prefillMember = location.state?.member || {};
+  // The incoming data from navigation state, using 'member' key.
+  const prefillMember = location.state?.member || {}; 
 
   const [formData, setFormData] = useState({
     nameInFull: "",
@@ -204,34 +207,46 @@ const AddAppliedMembers = () => {
     fetchInstitutions();
   }, [formData.category, formData.province, formData.district, categories, provinces, districts]);
 
+  // --- START OF CORRECTION ---
   useEffect(() => {
     if (Object.keys(prefillMember).length > 0) {
+      // Map the incoming data keys (e.g., fullName, mobile) to the state keys (e.g., nameInFull, phonePersonal)
       setFormData(prev => ({
         ...prev,
-        nameInFull: prefillMember.name_in_full || "",
-        email: prefillMember.email || "",
-        officialAddress: prefillMember.official_address || "",
-        personalAddress: prefillMember.personal_address || "",
-        phonePersonal: prefillMember.phone_number_personal || "",
-        whatsappNumber: prefillMember.whatsapp_number || "",
-        gender: prefillMember.gender || "",
-        maritalStatus: prefillMember.marital_status || "",
-        employmentNumber: prefillMember.employment_number_salary_number || "",
-        collegeOfNursing: prefillMember.college_of_nursing_university || "",
-        nursingCouncilReg: prefillMember.nursing_council_registration_number || "",
-        educationalQuals: prefillMember.educational_qualifications || "",
-        specialties: prefillMember.specialties_special_trainings || "",
-        category: prefillMember.category || "", // assuming added
+        // Personal Information
+        nameInFull: prefillMember.fullName || "", // MAPPED: fullName -> nameInFull
+        email: prefillMember.email || "", 
+        officialAddress: prefillMember.officialAddress || "", // MAPPED: officialAddress -> officialAddress
+        personalAddress: prefillMember.personalAddress || "", // MAPPED: personalAddress -> personalAddress
+        dob: prefillMember.dob || "", 
+        phonePersonal: prefillMember.mobile || "", // MAPPED: mobile -> phonePersonal
+        whatsappNumber: prefillMember.whatsappNumber || "", 
+        gender: prefillMember.gender || "", 
+        maritalStatus: prefillMember.maritalStatus || "", 
+        nicNumber: prefillMember.nicNumber || "", 
+
+        // Designation & Work Place (Assuming these keys match if passed)
+        category: prefillMember.category || "", 
         designation: prefillMember.designation || "",
-        province: prefillMember.province_work_place || "",
-        district: prefillMember.district_work_place || "",
+        province: prefillMember.province || "",
+        district: prefillMember.district || "",
         rdhs: prefillMember.rdhs || "",
-        institution: prefillMember.type_of_organization_hospital || "",
-        nicNumber: prefillMember.nic_number || "",
-        // dob and firstAppointmentDate in payload if needed
+        institution: prefillMember.institution || "", 
+
+        // Employment Details
+        firstAppointmentDate: prefillMember.firstAppointmentDate || "", 
+        employmentNumber: prefillMember.employmentNumber || "", // MAPPED: employmentNumber -> employmentNumber
+        collegeOfNursing: prefillMember.university || "", // MAPPED: university -> collegeOfNursing
+        nursingCouncilReg: prefillMember.nursingCouncilReg || "", 
+        educationalQuals: prefillMember.educationalQuals || "",
+        specialties: prefillMember.specialties || "",
+
+        // Signature
+        signature: prefillMember.signature || null, // MAPPED: signature -> signature
       }));
     }
   }, [prefillMember]);
+  // --- END OF CORRECTION ---
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -283,18 +298,14 @@ const AddAppliedMembers = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = JSON.stringify({
-      dob: formData.dob,
-      firstAppointmentDate: formData.firstAppointmentDate,
-      // any other fields not in columns
-    });
+    // Payload for DB insertion (ensure keys match DB columns)
     const responseData = {
-      payload,
+      // NOTE: payload field is removed as it wasn't necessary for this data structure.
       email: formData.email,
       gender: formData.gender,
       designation: formData.designation,
       nic_number: formData.nicNumber,
-      name_in_full: formData.nameInFull,
+      name_in_full: formData.nameInFull, // Correct column name used
       marital_status: formData.maritalStatus,
       whatsapp_number: formData.whatsappNumber,
       official_address: formData.officialAddress,
@@ -311,10 +322,13 @@ const AddAppliedMembers = () => {
       specialties_special_trainings: formData.specialties,
       signature: formData.signature,
       timestamp: new Date().toISOString(),
+      // Adding DOB and First Appointment Date to the direct DB columns if they exist
+      dob: formData.dob, 
+      first_appointment_date: formData.firstAppointmentDate,
     };
 
     const { error } = await supabase.from("form_responses").insert([responseData]);
-    if (error) console.error(error);
+    if (error) console.error("Supabase Insert Error:", error);
     else {
       // Refetch applied members
       const { data, error: fetchError } = await supabase.from("form_responses").select("*");
@@ -359,10 +373,9 @@ const AddAppliedMembers = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F4F7F8] py-12 px-4"> {/* UPDATED BG */}
+    <div className="min-h-screen bg-[#F4F7F8] py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white shadow-xl rounded-2xl overflow-hidden">
-          {/* UPDATED HEADER GRADIENT */}
           <div className="bg-gradient-to-r from-[#2563EB] to-[#800000] px-8 py-6">
             <h1 className="text-3xl font-bold text-white text-center">
               Government Nursing Officers' Association
@@ -372,7 +385,7 @@ const AddAppliedMembers = () => {
 
           <div className="p-8">
             <div className="mb-8">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-[#2563EB]"> {/* UPDATED BORDER */}
+              <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-[#2563EB]">
                 Personal Information
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -385,7 +398,7 @@ const AddAppliedMembers = () => {
                     name="nameInFull"
                     value={formData.nameInFull}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                     placeholder="Enter full name"
                   />
                 </div>
@@ -399,7 +412,7 @@ const AddAppliedMembers = () => {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                     placeholder="Enter email address"
                   />
                 </div>
@@ -413,7 +426,7 @@ const AddAppliedMembers = () => {
                     name="nicNumber"
                     value={formData.nicNumber}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                     placeholder="Enter NIC number"
                   />
                 </div>
@@ -427,7 +440,7 @@ const AddAppliedMembers = () => {
                     name="dob"
                     value={formData.dob}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                   />
                 </div>
 
@@ -440,7 +453,7 @@ const AddAppliedMembers = () => {
                     name="phonePersonal"
                     value={formData.phonePersonal}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                     placeholder="+94 XX XXX XXXX"
                   />
                 </div>
@@ -454,7 +467,7 @@ const AddAppliedMembers = () => {
                     name="whatsappNumber"
                     value={formData.whatsappNumber}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                     placeholder="+94 XX XXX XXXX"
                   />
                 </div>
@@ -467,7 +480,7 @@ const AddAppliedMembers = () => {
                     name="gender"
                     value={formData.gender}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                   >
                     <option value="">Select gender</option>
                     <option value="Male">Male</option>
@@ -484,7 +497,7 @@ const AddAppliedMembers = () => {
                     name="maritalStatus"
                     value={formData.maritalStatus}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                   >
                     <option value="">Select marital status</option>
                     <option value="Single">Single</option>
@@ -503,7 +516,7 @@ const AddAppliedMembers = () => {
                     name="officialAddress"
                     value={formData.officialAddress}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                     placeholder="Enter official address"
                   />
                 </div>
@@ -517,7 +530,7 @@ const AddAppliedMembers = () => {
                     name="personalAddress"
                     value={formData.personalAddress}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                     placeholder="Enter personal address"
                   />
                 </div>
@@ -525,7 +538,7 @@ const AddAppliedMembers = () => {
             </div>
 
             <div className="mb-8">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-[#2563EB]"> {/* UPDATED BORDER */}
+              <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-[#2563EB]">
                 Designation
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -537,7 +550,7 @@ const AddAppliedMembers = () => {
                     name="category"
                     value={formData.category}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                   >
                     <option value="">Select category</option>
                     {categories.map((cat) => (
@@ -557,7 +570,7 @@ const AddAppliedMembers = () => {
                       name="designation"
                       value={formData.designation}
                       onChange={handleChange}
-                      className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                      className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                     >
                       <option value="">Select designation</option>
                       {categoryDesignations[formData.category]?.map((des, idx) => (
@@ -572,7 +585,7 @@ const AddAppliedMembers = () => {
             </div>
 
             <div className="mb-8">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-[#2563EB]"> {/* UPDATED BORDER */}
+              <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-[#2563EB]">
                 Work Place
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -584,7 +597,7 @@ const AddAppliedMembers = () => {
                     name="province"
                     value={formData.province}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                   >
                     <option value="">Select province</option>
                     {provinces.map((prov) => (
@@ -604,7 +617,7 @@ const AddAppliedMembers = () => {
                       name="district"
                       value={formData.district}
                       onChange={handleChange}
-                      className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                      className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                     >
                       <option value="">Select district</option>
                       {districts.map((dist) => (
@@ -639,7 +652,7 @@ const AddAppliedMembers = () => {
                     name="rdhs"
                     value={formData.rdhs}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                     placeholder="Enter RDHS"
                   />
                 </div>
@@ -647,7 +660,7 @@ const AddAppliedMembers = () => {
             </div>
 
             <div className="mb-8">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-[#2563EB]"> {/* UPDATED BORDER */}
+              <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-[#2563EB]">
                 Employment Details
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -660,7 +673,7 @@ const AddAppliedMembers = () => {
                     name="firstAppointmentDate"
                     value={formData.firstAppointmentDate}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                   />
                 </div>
 
@@ -673,7 +686,7 @@ const AddAppliedMembers = () => {
                     name="employmentNumber"
                     value={formData.employmentNumber}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                     placeholder="Enter employment number"
                   />
                 </div>
@@ -687,7 +700,7 @@ const AddAppliedMembers = () => {
                     name="collegeOfNursing"
                     value={formData.collegeOfNursing}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                     placeholder="Enter college or university"
                   />
                 </div>
@@ -701,7 +714,7 @@ const AddAppliedMembers = () => {
                     name="nursingCouncilReg"
                     value={formData.nursingCouncilReg}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                     placeholder="Enter registration number"
                   />
                 </div>
@@ -714,7 +727,7 @@ const AddAppliedMembers = () => {
                     name="educationalQuals"
                     value={formData.educationalQuals}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                     placeholder="Enter educational qualifications"
                     rows={3}
                   />
@@ -728,7 +741,7 @@ const AddAppliedMembers = () => {
                     name="specialties"
                     value={formData.specialties}
                     onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all" /* UPDATED RING */
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                     placeholder="Enter specialties or special trainings"
                     rows={3}
                   />
@@ -737,7 +750,7 @@ const AddAppliedMembers = () => {
             </div>
 
             <div className="mb-8">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-[#2563EB]"> {/* UPDATED BORDER */}
+              <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-[#2563EB]">
                 Signature
               </h3>
               <div>
@@ -772,7 +785,7 @@ const AddAppliedMembers = () => {
             <div className="flex justify-center">
               <button
                 onClick={handleSubmit}
-                className="px-8 py-3 bg-gradient-to-r from-[#2563EB] to-[#800000] text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200" /* UPDATED GRADIENT */
+                className="px-8 py-3 bg-gradient-to-r from-[#2563EB] to-[#800000] text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
               >
                 Submit Application
               </button>
@@ -782,7 +795,6 @@ const AddAppliedMembers = () => {
 
         {appliedMembers.length > 0 && (
           <div className="mt-8 bg-white shadow-xl rounded-2xl overflow-hidden">
-            {/* UPDATED HEADER BG */}
             <div className="bg-[#2563EB] px-8 py-4">
               <h3 className="text-2xl font-bold text-white">Applied Members ({appliedMembers.length})</h3>
             </div>

@@ -14,7 +14,9 @@ export const mapFormResponseToMember = (formResponse) => {
     email: data.Email || 'N/A',
     phoneNumber: data['Phone number (personal)'] || null,
     whatsappNumber: data['whatsApp Number'] || null,
-    nicNumber: data['NIC number ']?.trim() || null,
+    nicNumber: data['NIC number '] 
+        ? String(data['NIC number ']).trim() 
+        : null,
     gender: data.Gender || null,
     maritalStatus: data['Marital status'] || null,
     dateOfBirth: data['Date of birth'] ? new Date(data['Date of birth']) : null,
