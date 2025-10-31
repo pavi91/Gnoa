@@ -10,7 +10,14 @@ import {
 
 // Styles
 const styles = StyleSheet.create({
-  page: { padding: 30, fontSize: 11, lineHeight: 1.4 },
+  page: { 
+    padding: 30, 
+    fontSize: 11, 
+    lineHeight: 1.4,
+    // --- ADDED BORDER ---
+    border: '2pt solid #000',
+    // ---------------------
+  },
   header: { textAlign: "center", marginBottom: 15 },
   section: { marginVertical: 5 },
   labelCell: { width: "40%", fontWeight: "bold" },

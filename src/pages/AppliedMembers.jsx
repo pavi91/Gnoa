@@ -12,7 +12,8 @@ import {
   Search, 
   Filter,
   CheckCircle,
-  ShieldCheck, // New icon for Verify button
+  ShieldCheck, // Icon for Verify button
+  Download, // Icon for Download button
   Sigma, // Placeholder for Gender/Age since we removed the second row for NIC
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -22,6 +23,7 @@ import { MembershipFormDoc } from './MembershipForm';
 const MemberList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [downloadingId, setDownloadingId] = useState(null); // State for download loading
   const navigate = useNavigate();
   
   const {
@@ -49,6 +51,57 @@ const MemberList = () => {
     
     return ""; // Default to empty
   };
+
+  // --- NEW FUNCTION ---
+  // Handle PDF Download
+  const handleDownloadPDF = async (member) => {
+    setDownloadingId(member.id);
+    try {
+      // 1. Map member data to what MembershipFormDoc expects
+      // We pass Date objects so the PDF's formatDate can work correctly
+      const pdfData = {
+        fullName: member.fullName || 'N/A',
+        email: member.email || 'N/A',
+        designation: member.designation || 'N/A',
+        officialAddress: member.officialAddress || 'N/A',
+        personalAddress: member.personalAddress || 'N/A',
+        dob: member.dateOfBirth ? new Date(member.dateOfBirth) : null,
+        firstAppointmentDate: member.firstAppointmentDate ? new Date(member.firstAppointmentDate) : null,
+        mobile: member.phoneNumber || 'N/A',
+        gender: member.gender || 'N/A',
+        maritalStatus: member.maritalStatus || 'N/A',
+        employmentNumber: member.employmentNumber || 'N/A',
+        university: member.collegeUniversity || 'N/A',
+        signature: member.signatureUrl || null,
+      };
+
+      // 2. Generate the PDF blob
+      const blob = await pdf(<MembershipFormDoc data={pdfData} />).toBlob();
+      
+      // 3. Create a download link and trigger it
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Create a safe filename
+      const safeName = (member.fullName || 'member').replace(/[^a-z0-9]/gi, '_');
+      link.download = `Membership_Application_${safeName}.pdf`;
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      // 4. Clean up
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      // You could show an error toast/message to the user here
+    } finally {
+      setDownloadingId(null); // Stop loading state
+    }
+  };
+
 
   // Navigate to AddAppliedMembers with member data
   const handleVerify = (member) => {
@@ -242,8 +295,13 @@ const MemberList = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
+                  {/* --- NEW HEADER --- */}
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Signature
+                  </th>
+                  {/* ------------------ */}
                   <th className="relative px-6 py-3">
-                    <span className="sr-only">Verify</span>
+                    <span className="sr-only">Actions</span>
                   </th>
                 </tr>
               </thead>
@@ -309,7 +367,7 @@ const MemberList = () => {
                       <div className="flex items-center">
                         <Calendar className="mr-2 h-4 w-4 text-gray-400" />
                         <span>
-                          {formatDistanceToNow(member.timestamp, { addSuffix: true })}
+                          {formatDistanceToNow(new Date(member.timestamp), { addSuffix: true })}
                         </span>
                       </div>
                        {/* Removed second line: member.age */}
@@ -331,26 +389,61 @@ const MemberList = () => {
                       {/* Removed second line: member.isComplete */}
                     </td>
 
-                    {/* Actions / Verify Button */}
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      {member.status === 'pending' && (
-                        <button 
-                          onClick={() => handleVerify(member)}
-                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
-                        >
-                          <ShieldCheck className="h-4 w-4 mr-1" />
-                          Verify
-                        </button>
-                      )}
-                      {member.status !== 'pending' && (
-                        <button 
-                            disabled 
-                            className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-500 bg-gray-100 cursor-not-allowed"
-                        >
-                            {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
-                        </button>
+                    {/* --- NEW SIGNATURE CELL --- */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {member.signatureUrl ? (
+                        <img
+                          src={member.signatureUrl}
+                          alt="Signature"
+                          className="h-10 w-24 object-contain rounded"
+                          style={{ border: '1px solid #e2e8f0' }} // A light border
+                        />
+                      ) : (
+                        <span className="text-sm text-gray-500">N/A</span>
                       )}
                     </td>
+                    {/* ------------------------ */}
+
+                    {/* --- MODIFIED ACTIONS CELL --- */}
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end space-x-2">
+                        {/* Download Button (Always visible) */}
+                        <button
+                          onClick={() => handleDownloadPDF(member)}
+                          disabled={downloadingId === member.id}
+                          className="inline-flex items-center justify-center p-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                          title="Download PDF"
+                        >
+                          {downloadingId === member.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Download className="h-4 w-4" />
+                          )}
+                        </button>
+
+                        {/* Verify Button (Conditional) */}
+                        {member.status === 'pending' && (
+                          <button 
+                            onClick={() => handleVerify(member)}
+                            className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                          >
+                            <ShieldCheck className="h-4 w-4 mr-1" />
+                            Verify
+                          </button>
+                        )}
+                        
+                        {/* Status Badge (Non-pending) */}
+                        {member.status !== 'pending' && (
+                          <span 
+                              className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-500 bg-gray-100 cursor-not-allowed"
+                          >
+                              {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    {/* --- END MODIFIED CELL --- */}
+                    
                   </tr>
                 ))}
               </tbody>
