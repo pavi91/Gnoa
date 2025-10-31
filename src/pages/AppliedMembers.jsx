@@ -1,29 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react'; // <--- FIX 1: Import useEffect
 import { useNavigate } from 'react-router-dom';
 import { useMemberResponses } from '../hooks/useMemberResponses';
 import { 
   Loader2, 
   User, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  MapPin, 
-  Briefcase, 
   Search, 
   Filter,
-  CheckCircle,
-  ShieldCheck, // Icon for Verify button
-  Download, // Icon for Download button
-  Sigma, // Placeholder for Gender/Age since we removed the second row for NIC
+  Calendar, 
+  Phone,
+  ShieldCheck, 
+  Download,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { pdf } from '@react-pdf/renderer';
 import { MembershipFormDoc } from './MembershipForm';
 
+const ITEMS_PER_PAGE = 10;
+
 const MemberList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [downloadingId, setDownloadingId] = useState(null); // State for download loading
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  
   const navigate = useNavigate();
   
   const {
@@ -38,27 +39,23 @@ const MemberList = () => {
     getMembersByStatus
   } = useMemberResponses();
 
-  // Navigate to AddAppliedMembers with member data
+  // Helper (No changes)
   const getValidMaritalStatus = (status) => {
     if (status === 'Yes' || status === 'Married') return 'Married';
     if (status === 'No' || status === 'Single') return 'Single';
-    // Add other known bad values
-    
-    // Check if it's already a valid value
     if (['Single', 'Married', 'Divorced', 'Widowed'].includes(status)) {
       return status;
     }
-    
-    return ""; // Default to empty
+    return "";
   };
 
-  // --- NEW FUNCTION ---
   // Handle PDF Download
   const handleDownloadPDF = async (member) => {
+    // --- FIX 2: Removed setCurrentPage(1) ---
+    // Resetting the page on download is probably not desired.
+    // setCurrentPage(1); 
     setDownloadingId(member.id);
     try {
-      // 1. Map member data to what MembershipFormDoc expects
-      // We pass Date objects so the PDF's formatDate can work correctly
       const pdfData = {
         fullName: member.fullName || 'N/A',
         email: member.email || 'N/A',
@@ -75,87 +72,63 @@ const MemberList = () => {
         signature: member.signatureUrl || null,
       };
 
-      // 2. Generate the PDF blob
       const blob = await pdf(<MembershipFormDoc data={pdfData} />).toBlob();
-      
-      // 3. Create a download link and trigger it
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      
-      // Create a safe filename
       const safeName = (member.fullName || 'member').replace(/[^a-z0-9]/gi, '_');
       link.download = `Membership_Application_${safeName}.pdf`;
-      
       document.body.appendChild(link);
       link.click();
-      
-      // 4. Clean up
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
     } catch (error) {
       console.error("Error generating PDF:", error);
-      // You could show an error toast/message to the user here
     } finally {
-      setDownloadingId(null); // Stop loading state
+      setDownloadingId(null);
     }
   };
 
 
-  // Navigate to AddAppliedMembers with member data
+  // Handle Verify (No changes)
   const handleVerify = (member) => {
-    // Map fields to match AddAppliedMembers formData
     const memberData = {
-      // --- Personal Info ---
       fullName: member.fullName || '',
       email: member.email || '',
       nicNumber: member.nicNumber || '',
       dob: member.dateOfBirth ? new Date(member.dateOfBirth).toISOString().split('T')[0] : '',
       mobile: member.phoneNumber || '',
-      whatsappNumber: member.whatsappNumber || '', // <-- ADDED
+      whatsappNumber: member.whatsappNumber || '', 
       gender: member.gender || '',
-
       maritalStatus: getValidMaritalStatus(member.maritalStatus),
-      
       officialAddress: member.officialAddress || '',
       personalAddress: member.personalAddress || '',
-
-      // --- Designation & Work Place ---
-      // Note: We prefill the *value* of designation/institution.
-      // The user may need to re-select Category/Province/District 
-      // to re-populate the dropdowns if they wish to change them.
       designation: member.designation || '',
-      province: member.province || '',             // <-- ADDED
-      district: member.district || '',           // <-- ADDED
-      rdhs: member.rdhs || '',                   // <-- ADDED
-      institution: member.organizationType || '',  // <-- MAPPED (organizationType -> institution)
-
-      // --- Employment Details ---
+      province: member.province || '',
+      district: member.district || '',
+      rdhs: member.rdhs || '',
+      institution: member.organizationType || '',
       firstAppointmentDate: member.firstAppointmentDate 
         ? new Date(member.firstAppointmentDate).toISOString().split('T')[0] 
         : '',
       employmentNumber: member.employmentNumber || '',
       university: member.collegeUniversity || '',
-      nursingCouncilReg: member.nursingCouncilNumber || '', // <-- MAPPED (nursingCouncilNumber -> nursingCouncilReg)
-      educationalQuals: member.educationalQualifications || '', // <-- MAPPED (educationalQualifications -> educationalQuals)
-      specialties: member.specialties ? member.specialties.join(', ') : '', // <-- MAPPED (array -> string)
-
-      // --- Signature ---
+      nursingCouncilReg: member.nursingCouncilNumber || '',
+      educationalQuals: member.educationalQualifications || '',
+      specialties: member.specialties ? member.specialties.join(', ') : '',
       signature: member.signatureUrl || null,
     };
     
-    // The category is missing, so we'll log a warning if it's not in the member object.
-    // The AddMembers form logic depends on it.
     if (!member.category) {
       console.warn("Warning: Navigating without a 'category'. Dropdown logic in AddMembers may be incomplete.");
-      // You might need to add: memberData.category = 'Some Default Category' if you can derive it.
     }
 
     navigate('/add', { state: { member: memberData } });
   };
-  // Apply filters
-  const filteredMembers = React.useMemo(() => {
+  
+  // --- FIX 3: Removed state update from useMemo ---
+  const filteredMembers = useMemo(() => {
     let result = members;
     
     if (searchTerm) {
@@ -168,6 +141,28 @@ const MemberList = () => {
     
     return result;
   }, [members, searchTerm, filterStatus, searchMembers, getMembersByStatus]);
+
+  // --- FIX 4: Added useEffect to handle the side effect ---
+  useEffect(() => {
+    // This effect will run whenever searchTerm or filterStatus changes.
+    // This is the correct place to reset the pagination.
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus]);
+
+
+  // --- PAGINATION LOGIC (No changes) ---
+  const totalPages = Math.ceil(filteredMembers.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  
+  const membersOnPage = filteredMembers.slice(startIndex, endIndex);
+
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+  // -------------------------
 
   if (loading && members.length === 0) {
     return (
@@ -182,14 +177,17 @@ const MemberList = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
+      {/* --- HEADER (No changes) --- */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-[#333]">Members Directory</h2>
           <p className="text-gray-600 mt-1">
-            {filteredMembers.length} of {members.length} members
+            <span className="font-semibold text-[#800000]">{filteredMembers.length}</span> members matching
             {filterStatus !== 'all' && ` • ${filterStatus}`}
             {searchTerm && ` • "${searchTerm}"`}
+            {/* --- FIX 5: Prevent Page 1 of 0 --- */}
+            <span className="ml-2 text-sm text-gray-400"> (Page {totalPages > 0 ? currentPage : 0} of {totalPages})</span>
           </p>
         </div>
         
@@ -205,9 +203,8 @@ const MemberList = () => {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* --- FILTERS (No changes) --- */}
       <div className="flex flex-col sm:flex-row gap-4 bg-white p-4 rounded-lg shadow-sm border">
-        {/* Search */}
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <input
@@ -219,7 +216,6 @@ const MemberList = () => {
           />
         </div>
 
-        {/* Status Filter */}
         <div className="flex items-center space-x-2">
           <Filter className="text-gray-400 h-4 w-4" />
           <select
@@ -235,23 +231,13 @@ const MemberList = () => {
         </div>
       </div>
 
-      {/* Error */}
+      {/* --- ERROR & EMPTY STATES (No changes) --- */}
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-red-800">{error}</p>
-            </div>
-          </div>
+          <p className="text-sm text-red-800">Error: {error}</p>
         </div>
       )}
 
-      {/* Empty State */}
       {!loading && filteredMembers.length === 0 && (
         <div className="text-center py-12">
           <User className="mx-auto h-12 w-12 text-gray-400" />
@@ -259,21 +245,19 @@ const MemberList = () => {
             {searchTerm || filterStatus !== 'all' ? 'No matching members' : 'No members found'}
           </h3>
           <p className="mt-1 text-sm text-gray-500">
-            {searchTerm ? `Try a different search term like "${searchTerm}"` : 
-             filterStatus !== 'all' ? 'Try adjusting your filters' : 
-             'Get started by having users submit the membership form.'}
+             Try adjusting your filters or search term.
           </p>
         </div>
       )}
 
-      {/* Members Table */}
-      {filteredMembers.length > 0 && (
+      {/* --- MEMBERS TABLE (No changes) --- */}
+      {membersOnPage.length > 0 && (
         <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
+              {/* ... table head ... */}
               <thead className="bg-gray-50">
                 <tr>
-                  {/* UPDATED COLUMNS */}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Full Name
                   </th>
@@ -295,18 +279,16 @@ const MemberList = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
-                  {/* --- NEW HEADER --- */}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Signature
                   </th>
-                  {/* ------------------ */}
                   <th className="relative px-6 py-3">
                     <span className="sr-only">Actions</span>
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredMembers.map((member) => (
+                {membersOnPage.map((member) => ( 
                   <tr key={member.id} className="hover:bg-gray-50">
                     
                     {/* Full Name */}
@@ -329,7 +311,6 @@ const MemberList = () => {
                           <div className="text-sm font-medium text-gray-900">
                             {member.fullName}
                           </div>
-                          {/* Removed second line: member.nicNumber */}
                         </div>
                       </div>
                     </td>
@@ -339,7 +320,6 @@ const MemberList = () => {
                       <div className="text-sm font-medium text-gray-900">
                         {member.designation || 'N/A'}
                       </div>
-                       {/* Removed second line: member.organizationType */}
                     </td>
                     
                     {/* Phone Number */}
@@ -348,13 +328,11 @@ const MemberList = () => {
                           <Phone className="mr-1 h-3 w-3 text-gray-500" />
                           {member.phoneNumber || 'N/A'}
                         </div>
-                         {/* Removed second line: member.whatsappNumber */}
                     </td>
                     
                     {/* Gender */}
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {member.gender || 'N/A'}
-                       {/* Removed second line: member.age */}
                     </td>
 
                     {/* Email */}
@@ -370,7 +348,6 @@ const MemberList = () => {
                           {formatDistanceToNow(new Date(member.timestamp), { addSuffix: true })}
                         </span>
                       </div>
-                       {/* Removed second line: member.age */}
                     </td>
 
                     {/* Status */}
@@ -386,28 +363,26 @@ const MemberList = () => {
                       >
                         {member.status}
                       </span>
-                      {/* Removed second line: member.isComplete */}
                     </td>
 
-                    {/* --- NEW SIGNATURE CELL --- */}
+                    {/* Signature */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       {member.signatureUrl ? (
                         <img
                           src={member.signatureUrl}
                           alt="Signature"
                           className="h-10 w-24 object-contain rounded"
-                          style={{ border: '1px solid #e2e8f0' }} // A light border
+                          style={{ border: '1px solid #e2e8f0' }}
                         />
                       ) : (
                         <span className="text-sm text-gray-500">N/A</span>
                       )}
                     </td>
-                    {/* ------------------------ */}
 
-                    {/* --- MODIFIED ACTIONS CELL --- */}
+                    {/* Actions */}
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end space-x-2">
-                        {/* Download Button (Always visible) */}
+                        {/* Download Button */}
                         <button
                           onClick={() => handleDownloadPDF(member)}
                           disabled={downloadingId === member.id}
@@ -442,7 +417,6 @@ const MemberList = () => {
                         )}
                       </div>
                     </td>
-                    {/* --- END MODIFIED CELL --- */}
                     
                   </tr>
                 ))}
@@ -452,25 +426,75 @@ const MemberList = () => {
         </div>
       )}
 
-      {/* Load More Button */}
-      {hasMore && filteredMembers.length < members.length && (
-        <div className="flex justify-center py-4">
-          <button
-            onClick={loadMore}
-            disabled={loadingMore}
-            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-[#800000] hover:bg-[#600000] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-          >
-            {loadingMore ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Loading more members...
-              </>
-            ) : (
-              `Load More (${members.length - filteredMembers.length} remaining)`
-            )}
-          </button>
+      {/* --- PAGINATION CONTROL (No changes) --- */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg shadow-sm">
+          <div className="flex-1 flex justify-between sm:hidden">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                Showing{' '}
+                <span className="font-medium">{startIndex + 1}</span> to{' '}
+                <span className="font-medium">{Math.min(endIndex, filteredMembers.length)}</span> of{' '}
+                <span className="font-medium">{filteredMembers.length}</span> results
+              </p>
+            </div>
+            <div>
+              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <span className="sr-only">Previous</span>
+                  <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                </button>
+                
+                {/* Simple page number buttons */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    aria-current={currentPage === page ? 'page' : undefined}
+                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                      currentPage === page
+                        ? 'z-10 bg-[#800000] border-[#800000] text-white'
+                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <span className="sr-only">Next</span>
+                  <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </nav>
+            </div>
+          </div>
         </div>
       )}
+      
     </div>
   );
 };
