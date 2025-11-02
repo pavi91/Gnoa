@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'; // <--- FIX 1: Import useEffect
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMemberResponses } from '../hooks/useMemberResponses';
 import { 
@@ -10,6 +10,9 @@ import {
   Phone,
   ShieldCheck, 
   Download,
+  Trash2, 
+  X, // <--- CHANGE 1: Import X
+  AlertTriangle, // <--- CHANGE 1: Import AlertTriangle
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -23,6 +26,13 @@ const MemberList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [downloadingId, setDownloadingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  
+  // <--- CHANGE 2: Add state for modal ---
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [memberToDelete, setMemberToDelete] = useState(null);
+  // ------------------------------------
+
   const [currentPage, setCurrentPage] = useState(1);
   
   const navigate = useNavigate();
@@ -49,11 +59,8 @@ const MemberList = () => {
     return "";
   };
 
-  // Handle PDF Download
+  // Handle PDF Download (No changes)
   const handleDownloadPDF = async (member) => {
-    // --- FIX 2: Removed setCurrentPage(1) ---
-    // Resetting the page on download is probably not desired.
-    // setCurrentPage(1); 
     setDownloadingId(member.id);
     try {
       const pdfData = {
@@ -126,8 +133,51 @@ const MemberList = () => {
 
     navigate('/add', { state: { member: memberData } });
   };
+
+  // <--- CHANGE 3: Add Modal Handlers ---
   
-  // --- FIX 3: Removed state update from useMemo ---
+  // This function just opens the modal
+  const openDeleteModal = (member) => {
+    setMemberToDelete(member);
+    setIsModalOpen(true);
+  };
+
+  // This function just closes the modal
+  const closeDeleteModal = () => {
+    if (deletingId) return; // Don't close if delete is in progress
+    setMemberToDelete(null);
+    setIsModalOpen(false);
+  };
+
+  // This function runs the actual deletion logic
+  const handleConfirmDelete = async () => {
+    if (!memberToDelete) return;
+
+    setDeletingId(memberToDelete.id);
+    try {
+      // ---
+      // TODO: Add your data deletion logic here.
+      // e.g., call a function from your hook or Supabase client
+      // const { error } = await supabase.from('members').delete().match({ id: memberToDelete.id });
+      // if (error) throw error;
+      // ---
+      
+      console.log(`Simulating delete for member ID: ${memberToDelete.id}`);
+      await new Promise(resolve => setTimeout(resolve, 750)); 
+      
+      refresh(); // Refresh data
+      closeDeleteModal(); // Close modal on success
+
+    } catch (error) {
+      console.error("Error deleting member:", error);
+      // You could add an error message state to show in the modal
+    } finally {
+      setDeletingId(null); // Stop the spinner regardless of outcome
+    }
+  };
+  // ------------------------------------
+  
+  // filtering logic
   const filteredMembers = useMemo(() => {
     let result = members;
     
@@ -142,15 +192,13 @@ const MemberList = () => {
     return result;
   }, [members, searchTerm, filterStatus, searchMembers, getMembersByStatus]);
 
-  // --- FIX 4: Added useEffect to handle the side effect ---
+  // pagination reset effect
   useEffect(() => {
-    // This effect will run whenever searchTerm or filterStatus changes.
-    // This is the correct place to reset the pagination.
     setCurrentPage(1);
   }, [searchTerm, filterStatus]);
 
 
-  // --- PAGINATION LOGIC (No changes) ---
+  // Pagination logic
   const totalPages = Math.ceil(filteredMembers.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
@@ -162,8 +210,8 @@ const MemberList = () => {
       setCurrentPage(page);
     }
   };
-  // -------------------------
-
+  
+  // --- Loading State ---
   if (loading && members.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -175,10 +223,11 @@ const MemberList = () => {
     );
   }
 
+  // --- Main Component JSX ---
   return (
     <div className="space-y-6">
       
-      {/* --- HEADER (No changes) --- */}
+      {/* --- HEADER --- */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-[#333]">Members Directory</h2>
@@ -186,7 +235,6 @@ const MemberList = () => {
             <span className="font-semibold text-[#800000]">{filteredMembers.length}</span> members matching
             {filterStatus !== 'all' && ` • ${filterStatus}`}
             {searchTerm && ` • "${searchTerm}"`}
-            {/* --- FIX 5: Prevent Page 1 of 0 --- */}
             <span className="ml-2 text-sm text-gray-400"> (Page {totalPages > 0 ? currentPage : 0} of {totalPages})</span>
           </p>
         </div>
@@ -203,7 +251,7 @@ const MemberList = () => {
         </div>
       </div>
 
-      {/* --- FILTERS (No changes) --- */}
+      {/* --- FILTERS --- */}
       <div className="flex flex-col sm:flex-row gap-4 bg-white p-4 rounded-lg shadow-sm border">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -231,7 +279,7 @@ const MemberList = () => {
         </div>
       </div>
 
-      {/* --- ERROR & EMPTY STATES (No changes) --- */}
+      {/* --- ERROR & EMPTY STATES --- */}
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-sm text-red-800">Error: {error}</p>
@@ -250,7 +298,7 @@ const MemberList = () => {
         </div>
       )}
 
-      {/* --- MEMBERS TABLE (No changes) --- */}
+      {/* --- MEMBERS TABLE --- */}
       {membersOnPage.length > 0 && (
         <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
           <div className="overflow-x-auto">
@@ -385,7 +433,7 @@ const MemberList = () => {
                         {/* Download Button */}
                         <button
                           onClick={() => handleDownloadPDF(member)}
-                          disabled={downloadingId === member.id}
+                          disabled={downloadingId === member.id || deletingId === member.id}
                           className="inline-flex items-center justify-center p-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-wait"
                           title="Download PDF"
                         >
@@ -400,7 +448,8 @@ const MemberList = () => {
                         {member.status === 'pending' && (
                           <button 
                             onClick={() => handleVerify(member)}
-                            className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                            disabled={deletingId === member.id || downloadingId === member.id}
+                            className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors disabled:opacity-50"
                           >
                             <ShieldCheck className="h-4 w-4 mr-1" />
                             Verify
@@ -415,6 +464,21 @@ const MemberList = () => {
                               {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
                           </span>
                         )}
+
+                        {/* Delete Button */}
+                        <button
+                          // <--- CHANGE 4: Update onClick
+                          onClick={() => openDeleteModal(member)}
+                          disabled={downloadingId === member.id || deletingId === member.id}
+                          className="inline-flex items-center justify-center p-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                          title="Delete Member"
+                        >
+                          {deletingId === member.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </button>
                       </div>
                     </td>
                     
@@ -426,10 +490,11 @@ const MemberList = () => {
         </div>
       )}
 
-      {/* --- PAGINATION CONTROL (No changes) --- */}
+      {/* --- PAGINATION CONTROL --- */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg shadow-sm">
-          <div className="flex-1 flex justify-between sm:hidden">
+          {/* ... pagination controls (no changes) ... */}
+           <div className="flex-1 flex justify-between sm:hidden">
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
@@ -465,7 +530,6 @@ const MemberList = () => {
                   <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                 </button>
                 
-                {/* Simple page number buttons */}
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                   <button
                     key={page}
@@ -494,7 +558,82 @@ const MemberList = () => {
           </div>
         </div>
       )}
-      
+
+      {/* <--- CHANGE 5: Add Delete Confirmation Modal --- */}
+      {isModalOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity"
+          aria-labelledby="modal-title"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 m-4">
+            
+            {/* Modal Close Button */}
+            <button 
+              onClick={closeDeleteModal}
+              disabled={!!deletingId}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+            >
+              <span className="sr-only">Close</span>
+              <X className="h-6 w-6" />
+            </button>
+
+            <div className="flex items-start">
+              {/* Icon (Optional, but good for UX) */}
+              <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
+              </div>
+              <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                {/* Modal Title */}
+                <h3 className="text-lg leading-6 font-bold text-gray-900" id="modal-title">
+                  Are you sure you want to delete?
+                </h3>
+                {/* Modal Description */}
+                <div className="mt-2">
+                  <p className="text-sm text-gray-500">
+                    Accepting this will permanently remove the record
+                    {memberToDelete?.fullName && (
+                      <span className="font-medium text-gray-700"> for {memberToDelete.fullName}</span>
+                    )}
+                    . This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Action Buttons */}
+            <div className="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse sm:space-x-4 sm:space-x-reverse">
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={!!deletingId}
+                className="inline-flex justify-center w-full rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:text-sm disabled:opacity-50 disabled:cursor-wait"
+              >
+                {deletingId === memberToDelete?.id ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Accept changes'
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={!!deletingId}
+                className="mt-3 sm:mt-0 inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:text-sm disabled:opacity-50"
+              >
+                Reject
+              </button>
+            </div>
+            
+          </div>
+        </div>
+      )}
+      {/* ------------------------------------------- */}
+
     </div>
   );
 };
