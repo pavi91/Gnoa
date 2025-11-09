@@ -13,7 +13,8 @@ import ProfilePage from "./components/ProfilePage";
 // import Profile from "./pages/Profile";
 
 export default function App() {
-  const { loading, isAuthenticated } = useAuth();
+  // 1. Get the full 'user' object from your updated useAuth hook
+  const { loading, isAuthenticated, user } = useAuth(); // <--- UPDATED
 
   // Show loading state while auth is being checked
   if (loading) {
@@ -46,9 +47,20 @@ export default function App() {
           <Route path="/applied" element={<AppliedMembers />} />
           <Route path="/add" element={<AddAppliedMembers />} />
           <Route path="/ex" element={<ExMember/>} />
-          <Route path="/manage" element={<UserManagement/>} />
           <Route path="/profile" element={<ProfilePage/>} />
+          
+          {/* 2. Create the Admin-only route */}
+          <Route 
+            path="/manage" 
+            element={
+              // Check if the user's role is 'admin'
+              user?.user_metadata?.role === 'admin' 
+                ? <UserManagement /> 
+                : <Navigate to="/dashboard" replace /> // Redirect to dashboard if not admin
+            } 
+          />
         </Route>
+
 
         {/* Catch-all */}
         <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/auth"} />} />
