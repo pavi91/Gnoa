@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react'; // <--- CHANGE 1: Import useMemo
 import { Link, useLocation } from 'react-router-dom';
 import gnoaLogo from '../assets/gnoa_logo.jpg';
 import {
@@ -11,6 +11,7 @@ import {
   X,
   UserRoundPlus
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext'; // <--- CHANGE 2: Import useAuth
 
 /**
  * A modern, professional sidebar component for navigation.
@@ -22,35 +23,51 @@ import {
 const Sidebar = ({ isOpen, isMobile, onClose }) => {
   const location = useLocation();
   const [isDesktopOpen, setIsDesktopOpen] = useState(false);
+  
+  // <--- CHANGE 3: Get user and determine if admin ---
+  const { user } = useAuth();
+  const isAdmin = user?.user_metadata?.role === 'admin';
+  // --------------------------------------------------
 
-  const menuItems = [
-    {
-      icon: LayoutDashboard,
-      label: 'Dashboard',
-      path: '/dashboard',
-    },
-    {
-      icon: UserCheck,
-      label: 'Applications',
-      path: '/applied',
-      // badge: 126
-    },
-    {
-      icon: UserPlus,
-      label: 'Add Members',
-      path: '/add',
-    },
-    {
-      icon: Users,
-      label: 'Members',
-      path: '/ex',
-    },
-    {
-      icon: UserRoundPlus,
-      label: 'Users',
-      path: '/manage',
-    },
-  ];
+  // <--- CHANGE 4: Use useMemo to build the menu items list ---
+  const menuItems = useMemo(() => {
+    // Start with the items everyone can see
+    const items = [
+      {
+        icon: LayoutDashboard,
+        label: 'Dashboard',
+        path: '/dashboard',
+      },
+      {
+        icon: UserCheck,
+        label: 'Applications',
+        path: '/applied',
+        // badge: 126
+      },
+      {
+        icon: UserPlus,
+        label: 'Add Members',
+        path: '/add',
+      },
+      {
+        icon: Users,
+        label: 'Members',
+        path: '/ex',
+      },
+    ];
+
+    // Conditionally add the admin-only item
+    if (isAdmin) {
+      items.push({
+        icon: UserRoundPlus,
+        label: 'Users',
+        path: '/manage',
+      });
+    }
+
+    return items;
+  }, [isAdmin]); // This list will only recalculate when isAdmin changes
+  // ------------------------------------------------------------
 
   const sidebarContent = (
     <div className="h-full flex flex-col bg-white border-r border-slate-200">
@@ -151,7 +168,7 @@ const Sidebar = ({ isOpen, isMobile, onClose }) => {
               {!(isMobile ? isOpen : isDesktopOpen) && (
                 <div className="absolute left-full ml-2 px-3 py-2 bg-slate-800 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
                   {item.label}
-                  <div className="absolute right-full top-1/2 transform -translate-y-1/2 border-4 border-transparent border-r-slate-800"></div>
+                  <div className="absolute right-full top-1/2 transform -translate-y-1/2 border-4 border-transparent border-r-slate-80s00"></div>
                 </div>
               )}
             </Link>

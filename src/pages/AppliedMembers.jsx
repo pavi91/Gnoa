@@ -257,7 +257,7 @@ const MemberList = () => {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <input
             type="text"
-            placeholder="Search members by name, email, NIC..."
+            placeholder="Search members by name, email or NIC"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:border-transparent"
@@ -326,9 +326,6 @@ const MemberList = () => {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Signature
                   </th>
                   <th className="relative px-6 py-3">
                     <span className="sr-only">Actions</span>
@@ -411,20 +408,6 @@ const MemberList = () => {
                       >
                         {member.status}
                       </span>
-                    </td>
-
-                    {/* Signature */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {member.signatureUrl ? (
-                        <img
-                          src={member.signatureUrl}
-                          alt="Signature"
-                          className="h-10 w-24 object-contain rounded"
-                          style={{ border: '1px solid #e2e8f0' }}
-                        />
-                      ) : (
-                        <span className="text-sm text-gray-500">N/A</span>
-                      )}
                     </td>
 
                     {/* Actions */}

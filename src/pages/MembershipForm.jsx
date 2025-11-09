@@ -1,4 +1,5 @@
 import React from "react";
+import logo from "../assets/gnoa_logo.jpg";
 import {
   Page,
   Text,
@@ -10,15 +11,17 @@ import {
 
 // Styles
 const styles = StyleSheet.create({
-  page: { 
-    padding: 30, 
-    fontSize: 11, 
+  page: {
+    padding: 30,
+    fontSize: 14  ,
     lineHeight: 1.4,
-    // --- ADDED BORDER ---
     border: '2pt solid #000',
-    // ---------------------
   },
-  header: { textAlign: "center", marginBottom: 15 },
+  header: {
+    textAlign: "center", // Centers text
+    marginBottom: 15,
+    alignItems: 'center', // Centers all items (like Image) horizontally
+  },
   section: { marginVertical: 5 },
   labelCell: { width: "40%", fontWeight: "bold" },
   valueCell: { width: "60%" },
@@ -49,8 +52,14 @@ const formatDate = (date) => {
 export const MembershipFormDoc = ({ data }) => (
   <Document>
     <Page size="A4" style={styles.page}>
-      {/* Header */}
+      {/* This View now uses alignItems: 'center' from the style,
+        so the Image and Text components will all be centered.
+      */}
       <View style={styles.header}>
+        <Image
+          src={logo}
+          style={{ width: 80, height: 80, marginBottom: 10 }}
+        />
         <Text style={{ fontSize: 14, fontWeight: "bold" }}>
           Government Nursing Officers' Association
         </Text>
