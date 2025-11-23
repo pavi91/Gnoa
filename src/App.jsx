@@ -10,6 +10,7 @@ import AddAppliedMembers from "./pages/AddMembers";
 import ExMember from "./pages/ExMembers";
 import UserManagement from "./pages/AddUser";
 import ProfilePage from "./components/ProfilePage";
+import Form from "./pages/ExternalMembers";
 // import Profile from "./pages/Profile";
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
       <Routes>
         {/* Public route */}
         <Route path="/" element={<Auth />} />
+        <Route path="/form" element={<Form />} />
         
         {/* Auth route */}
         <Route 
