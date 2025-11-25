@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Search, Upload, Check, AlertCircle, Loader2 } from "lucide-react";
 import { supabase } from '../supabaseClient';
 
-// --- SearchableDropdown Component (Optimized for Mobile) ---
+// --- SearchableDropdown Component ---
 const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -73,10 +73,29 @@ const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
   );
 };
 
+// --- ExternalMembers Component ---
 const ExternalMembers = () => {
+  
+  // --- CONFIGURATION ---
+  // 1. Categories that skip Province/District selection (Direct to Institution)
+  const DIRECT_LOCATION_CATEGORIES = [
+    "Line Ministry", 
+    "Nursing Training School"
+  ];
+
+  // 2. Categories that require a TEXT INPUT for Designation (instead of a dropdown)
+  // Ensure the names here match EXACTLY what is in your 'categories' table
+  const TEXT_INPUT_DESIGNATION_CATEGORIES = [
+    "Line Ministry", 
+    "Nursing Training School", 
+    "Public Health", 
+    "RDHS", 
+    "MOH Divisions"
+  ];
+
   // --- Security: Honeypot State ---
   const [honeypot, setHoneypot] = useState(""); 
-  
+   
   // --- UI States ---
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState({ type: "", message: "" });
@@ -94,14 +113,18 @@ const ExternalMembers = () => {
   const [provinces, setProvinces] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [institutions, setInstitutions] = useState([]);
-  
-  // Hardcoded for performance/fallback
+
+  // --- HELPER FUNCTIONS ---
+  const isDirectLocation = (category) => DIRECT_LOCATION_CATEGORIES.includes(category);
+  const isTextInputDesignation = (category) => TEXT_INPUT_DESIGNATION_CATEGORIES.includes(category);
+   
+  // Hardcoded designations (Fallback for categories NOT in the text input list)
   const categoryDesignations = {
     "Hospital Services": ["Chief Nursing Officer", "Deputy Chief Nursing Officer", "Senior Nursing Officer", "Nursing Officer", "Staff Nurse", "Ward Manager", "Clinical Nurse Specialist"],
-    "Public Health": ["Public Health Nursing Officer", "Community Health Nurse", "Health Education Officer", "Maternal & Child Health Officer", "Disease Surveillance Officer", "Health Promotion Officer"],
     "Education": ["Nursing Tutor", "Senior Nursing Tutor", "Principal - School of Nursing", "Vice Principal - School of Nursing", "Lecturer in Nursing", "Clinical Instructor"],
   };
 
+  // 1. Fetch Categories & Provinces
   useEffect(() => {
     const fetchInitialData = async () => {
       const { data: catData } = await supabase.from("categories").select("id, name");
@@ -113,8 +136,15 @@ const ExternalMembers = () => {
     fetchInitialData();
   }, []);
 
+  // 2. Fetch Districts
   useEffect(() => {
     const fetchDistricts = async () => {
+      // Skip fetching districts if it's a direct location category
+      if (isDirectLocation(formData.category)) {
+        setDistricts([]);
+        return;
+      }
+
       if (formData.province) {
         const provinceId = provinces.find(p => p.name === formData.province)?.id;
         if (provinceId) {
@@ -129,18 +159,41 @@ const ExternalMembers = () => {
       }
     };
     fetchDistricts();
-  }, [formData.province, provinces]);
+  }, [formData.province, provinces, formData.category]);
 
+  // 3. Fetch Institutions
   useEffect(() => {
     const fetchInstitutions = async () => {
-      if (formData.category && formData.province && formData.district) {
-        const categoryId = categories.find(c => c.name === formData.category)?.id;
+      if (!formData.category) {
+        setInstitutions([]);
+        return;
+      }
+
+      const categoryId = categories.find(c => c.name === formData.category)?.id;
+      if (!categoryId) return;
+
+      // CASE A: Direct Categories (Fetch only by category_id)
+      if (isDirectLocation(formData.category)) {
+        const { data } = await supabase
+          .from("institutions")
+          .select("name")
+          .eq("category_id", categoryId);
+        
+        if (data) setInstitutions(data.map(i => i.name));
+      } 
+      // CASE B: Standard Flow (Fetch by Category + Province + District)
+      else if (formData.province && formData.district) {
         const provinceId = provinces.find(p => p.name === formData.province)?.id;
         const districtId = districts.find(d => d.name === formData.district)?.id;
-        if (categoryId && provinceId && districtId) {
+        
+        if (provinceId && districtId) {
           const { data } = await supabase
-            .from("institutions").select("name")
-            .eq("category_id", categoryId).eq("province_id", provinceId).eq("district_id", districtId);
+            .from("institutions")
+            .select("name")
+            .eq("category_id", categoryId)
+            .eq("province_id", provinceId)
+            .eq("district_id", districtId);
+          
           if (data) setInstitutions(data.map(i => i.name));
         }
       } else {
@@ -152,12 +205,20 @@ const ExternalMembers = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
-    // Security: Input Sanitization (allow typing but sanitize on submit)
     const updates = { [name]: value };
 
     // Reset dependencies
-    if (name === "category") Object.assign(updates, { designation: "", institution: "" });
+    if (name === "category") {
+        updates.designation = "";
+        updates.institution = ""; 
+        
+        // If switching TO a Direct Location category, clear province/district
+        if (isDirectLocation(value)) {
+            updates.province = "";
+            updates.district = "";
+            updates.rdhs = "";
+        }
+    }
     if (name === "province") Object.assign(updates, { district: "", institution: "" });
     if (name === "district") Object.assign(updates, { institution: "" });
 
@@ -165,7 +226,6 @@ const ExternalMembers = () => {
   };
 
   const handleSelectChange = (name, value) => {
-     // Identical logic to handleChange for select inputs
      const updates = { [name]: value };
      setFormData(prev => ({ ...prev, ...updates }));
   };
@@ -175,13 +235,10 @@ const ExternalMembers = () => {
     setSubmitStatus({ type: "", message: "" });
 
     if (file) {
-      // SECURITY: Validate File Type
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
         setSubmitStatus({ type: "error", message: "Only JPG, PNG, or WEBP images allowed." });
         return;
       }
-
-      // SECURITY: Validate File Size (Max 500KB to prevent DB bloat/DoS)
       if (file.size > 500 * 1024) {
         setSubmitStatus({ type: "error", message: "Signature image must be less than 500KB." });
         return;
@@ -198,11 +255,15 @@ const ExternalMembers = () => {
   const validateForm = () => {
     const required = [
       "nameInFull", "email", "nicNumber", "dob", "phonePersonal", 
-      "gender", "category", "province", "district", 
-      "institution", "firstAppointmentDate", "employmentNumber", 
-      "collegeOfNursing", "nursingCouncilReg", "signature"
+      "gender", "category", "firstAppointmentDate", "employmentNumber", 
+      "collegeOfNursing", "nursingCouncilReg", "signature", "designation", "institution"
     ];
     
+    // Province/District required ONLY if NOT a Direct Location category
+    if (formData.category && !isDirectLocation(formData.category)) {
+        required.push("province", "district");
+    }
+
     for (let field of required) {
       if (!formData[field]) return false;
     }
@@ -213,10 +274,7 @@ const ExternalMembers = () => {
     e.preventDefault();
     setSubmitStatus({ type: "", message: "" });
 
-    // SECURITY: Honeypot Check
     if (honeypot) {
-      console.log("Bot detected");
-      // Fake success to fool the bot
       setSubmitStatus({ type: "success", message: "Application submitted successfully!" });
       return;
     }
@@ -230,11 +288,10 @@ const ExternalMembers = () => {
     setIsSubmitting(true);
 
     try {
-      // SECURITY: Sanitize string inputs before sending
       const cleanData = {
         email: formData.email.trim(),
         gender: formData.gender,
-        designation: formData.designation,
+        designation: formData.designation.trim(),
         nic_number: formData.nicNumber.trim().toUpperCase(),
         name_in_full: formData.nameInFull.trim(), 
         marital_status: formData.maritalStatus,
@@ -251,7 +308,7 @@ const ExternalMembers = () => {
         college_of_nursing_university: formData.collegeOfNursing.trim(),
         nursing_council_registration_number: formData.nursingCouncilReg.trim(),
         specialties_special_trainings: formData.specialties.trim(),
-        signature: formData.signature, // already validated size/type
+        signature: formData.signature,
         timestamp: new Date().toISOString(),
         dob: formData.dob, 
         first_appointment_date: formData.firstAppointmentDate,
@@ -262,7 +319,6 @@ const ExternalMembers = () => {
       if (error) throw error;
 
       setSubmitStatus({ type: "success", message: "Application submitted successfully!" });
-      // Clear form
       setFormData({
         nameInFull: "", email: "", officialAddress: "", personalAddress: "", dob: "",
         firstAppointmentDate: "", phonePersonal: "", whatsappNumber: "", gender: "",
@@ -280,7 +336,6 @@ const ExternalMembers = () => {
     }
   };
 
-  // Shared input style class
   const inputClass = "w-full bg-white border border-gray-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all outline-none appearance-none";
   const labelClass = "block text-sm font-semibold text-gray-700 mb-1.5";
 
@@ -306,13 +361,13 @@ const ExternalMembers = () => {
             </div>
           )}
 
-          {/* SECURITY: Honeypot Field (Hidden) */}
+          {/* Honeypot */}
           <div className="hidden" aria-hidden="true">
              <label htmlFor="website_url">Do not fill this field</label>
              <input type="text" id="website_url" name="website_url" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} tabIndex="-1" autoComplete="off" />
           </div>
 
-          {/* Section: Personal Info */}
+          {/* Personal Information */}
           <section>
             <h3 className="text-lg font-bold text-gray-900 border-l-4 border-[#2563EB] pl-3 mb-4">Personal Information</h3>
             <div className="space-y-4">
@@ -320,35 +375,25 @@ const ExternalMembers = () => {
                 <label className={labelClass}>Name in Full <span className="text-red-500">*</span></label>
                 <input type="text" name="nameInFull" value={formData.nameInFull} onChange={handleChange} className={inputClass} placeholder="Full Name" />
               </div>
-
               <div>
                 <label className={labelClass}>Email Address <span className="text-red-500">*</span></label>
                 <input type="email" name="email" inputMode="email" value={formData.email} onChange={handleChange} className={inputClass} placeholder="example@email.com" />
               </div>
-
-              <div>
-                <label className={labelClass}>NIC Number <span className="text-red-500">*</span></label>
-                <input type="text" name="nicNumber" value={formData.nicNumber} onChange={handleChange} className={inputClass} placeholder="NIC Number" />
-              </div>
-
-              <div className="grid grid-cols-1 gap-4">
-                <div>
+              <div className="grid grid-cols-2 gap-4">
+                 <div>
+                  <label className={labelClass}>NIC Number <span className="text-red-500">*</span></label>
+                  <input type="text" name="nicNumber" value={formData.nicNumber} onChange={handleChange} className={inputClass} />
+                 </div>
+                 <div>
                   <label className={labelClass}>Date of Birth <span className="text-red-500">*</span></label>
                   <input type="date" name="dob" value={formData.dob} onChange={handleChange} className={inputClass} />
-                </div>
+                 </div>
               </div>
-
-              <div>
-                <label className={labelClass}>Personal Phone <span className="text-red-500">*</span></label>
-                <input type="tel" name="phonePersonal" inputMode="tel" value={formData.phonePersonal} onChange={handleChange} className={inputClass} placeholder="07X XXXXXXX" />
-              </div>
-
-              <div>
-                <label className={labelClass}>WhatsApp Number</label>
-                <input type="tel" name="whatsappNumber" inputMode="tel" value={formData.whatsappNumber} onChange={handleChange} className={inputClass} placeholder="07X XXXXXXX" />
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>Mobile <span className="text-red-500">*</span></label>
+                  <input type="tel" name="phonePersonal" value={formData.phonePersonal} onChange={handleChange} className={inputClass} />
+                </div>
                 <div>
                   <label className={labelClass}>Gender <span className="text-red-500">*</span></label>
                   <select name="gender" value={formData.gender} onChange={handleChange} className={inputClass}>
@@ -357,26 +402,10 @@ const ExternalMembers = () => {
                     <option value="Female">Female</option>
                   </select>
                 </div>
-                <div>
-                  <label className={labelClass}>Marital Status</label>
-                  <select name="maritalStatus" value={formData.maritalStatus} onChange={handleChange} className={inputClass}>
-                    <option value="">Select</option>
-                    <option value="Single">Single</option>
-                    <option value="Married">Married</option>
-                    <option value="Divorced">Divorced</option>
-                    <option value="Widowed">Widowed</option>
-                  </select>
-                </div>
               </div>
-
               <div>
                 <label className={labelClass}>Official Address</label>
-                <textarea name="officialAddress" value={formData.officialAddress} onChange={handleChange} className={inputClass} rows={2} placeholder="Hospital/Institute Address" />
-              </div>
-              
-              <div>
-                <label className={labelClass}>Personal Address</label>
-                <textarea name="personalAddress" value={formData.personalAddress} onChange={handleChange} className={inputClass} rows={2} placeholder="Home Address" />
+                <textarea name="officialAddress" value={formData.officialAddress} onChange={handleChange} className={inputClass} rows={2} />
               </div>
             </div>
           </section>
@@ -395,51 +424,67 @@ const ExternalMembers = () => {
                 </select>
               </div>
 
-              {formData.category && (
-                <div className="fade-in">
-                  <label className={labelClass}>Designation <span className="text-red-500">*</span></label>
-                  <select name="designation" value={formData.designation} onChange={handleChange} className={inputClass}>
-                    <option value="">Select Designation</option>
-                    {categoryDesignations[formData.category]?.map((des, idx) => <option key={idx} value={des}>{des}</option>)}
-                  </select>
+              {/* LOCATION FIELDS - SHOW ONLY IF NOT A "DIRECT LOCATION" CATEGORY */}
+              {formData.category && !isDirectLocation(formData.category) && (
+                <div className="fade-in space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClass}>Province <span className="text-red-500">*</span></label>
+                      <select name="province" value={formData.province} onChange={handleChange} className={inputClass}>
+                        <option value="">Select</option>
+                        {provinces.map((prov) => <option key={prov.id} value={prov.name}>{prov.name}</option>)}
+                      </select>
+                    </div>
+                    {formData.province && (
+                      <div className="fade-in">
+                        <label className={labelClass}>District <span className="text-red-500">*</span></label>
+                        <select name="district" value={formData.district} onChange={handleChange} className={inputClass}>
+                          <option value="">Select</option>
+                          {districts.map((dist) => <option key={dist.id} value={dist.name}>{dist.name}</option>)}
+                        </select>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                   <label className={labelClass}>Province <span className="text-red-500">*</span></label>
-                   <select name="province" value={formData.province} onChange={handleChange} className={inputClass}>
-                    <option value="">Select</option>
-                    {provinces.map((prov) => <option key={prov.id} value={prov.name}>{prov.name}</option>)}
-                  </select>
-                </div>
-                {formData.province && (
-                  <div className="fade-in">
-                     <label className={labelClass}>District <span className="text-red-500">*</span></label>
-                     <select name="district" value={formData.district} onChange={handleChange} className={inputClass}>
-                      <option value="">Select</option>
-                      {districts.map((dist) => <option key={dist.id} value={dist.name}>{dist.name}</option>)}
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              {formData.district && (
+              {/* INSTITUTION - SHOW IF "DIRECT LOCATION" *OR* DISTRICT SELECTED */}
+              {(isDirectLocation(formData.category) || formData.district) && (
                 <div className="fade-in">
-                  <label className={labelClass}>Institution <span className="text-red-500">*</span></label>
-                  <SearchableDropdown
+                    <label className={labelClass}>Institution <span className="text-red-500">*</span></label>
+                    <SearchableDropdown
                     options={institutions}
                     value={formData.institution}
                     onChange={(value) => handleSelectChange("institution", value)}
                     placeholder="Search Institution..."
-                  />
+                    />
                 </div>
               )}
 
-              <div>
-                <label className={labelClass}>RDHS</label>
-                <input type="text" name="rdhs" value={formData.rdhs} onChange={handleChange} className={inputClass} placeholder="RDHS Area" />
-              </div>
+              {/* DESIGNATION FIELD - RENDER AS TEXT INPUT OR DROPDOWN */}
+              {formData.category && (
+                <div className="fade-in">
+                  <label className={labelClass}>Designation <span className="text-red-500">*</span></label>
+                  {isTextInputDesignation(formData.category) ? (
+                    // Text Input (For RDHS, Line Ministry, Nursing School, Public Health, MOH Divisions)
+                    <input
+                      type="text"
+                      name="designation"
+                      value={formData.designation}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="Enter your exact Designation"
+                    />
+                  ) : (
+                    // Dropdown (For other categories)
+                    <select name="designation" value={formData.designation} onChange={handleChange} className={inputClass}>
+                      <option value="">Select Designation</option>
+                      {categoryDesignations[formData.category]?.map((des, idx) => <option key={idx} value={des}>{des}</option>)}
+                    </select>
+                  )}
+                </div>
+              )}
+
             </div>
           </section>
 
@@ -449,37 +494,32 @@ const ExternalMembers = () => {
           <section>
             <h3 className="text-lg font-bold text-gray-900 border-l-4 border-[#2563EB] pl-3 mb-4">Employment Details</h3>
             <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className={labelClass}>First Appointment <span className="text-red-500">*</span></label>
+                        <input type="date" name="firstAppointmentDate" value={formData.firstAppointmentDate} onChange={handleChange} className={inputClass} />
+                    </div>
+                    <div>
+                        <label className={labelClass}>Emp/Salary No <span className="text-red-500">*</span></label>
+                        <input type="text" name="employmentNumber" value={formData.employmentNumber} onChange={handleChange} className={inputClass} />
+                    </div>
+                </div>
+                <div>
+                    <label className={labelClass}>Nursing Council Reg No <span className="text-red-500">*</span></label>
+                    <input type="text" name="nursingCouncilReg" value={formData.nursingCouncilReg} onChange={handleChange} className={inputClass} />
+                </div>
+                <div>
+                    <label className={labelClass}>College / University <span className="text-red-500">*</span></label>
+                    <input type="text" name="collegeOfNursing" value={formData.collegeOfNursing} onChange={handleChange} className={inputClass} />
+                </div>
+                <div>
+                    <label className={labelClass}>Educational Qualifications</label>
+                    <textarea name="educationalQuals" value={formData.educationalQuals} onChange={handleChange} className={inputClass} rows={2} />
+                </div>
                  <div>
-                    <label className={labelClass}>First Appointment Date <span className="text-red-500">*</span></label>
-                    <input type="date" name="firstAppointmentDate" value={formData.firstAppointmentDate} onChange={handleChange} className={inputClass} />
-                 </div>
-              </div>
-
-              <div>
-                <label className={labelClass}>Emp/Salary Number <span className="text-red-500">*</span></label>
-                <input type="text" name="employmentNumber" value={formData.employmentNumber} onChange={handleChange} className={inputClass} placeholder="Employment Number" />
-              </div>
-
-              <div>
-                <label className={labelClass}>College / University <span className="text-red-500">*</span></label>
-                <input type="text" name="collegeOfNursing" value={formData.collegeOfNursing} onChange={handleChange} className={inputClass} placeholder="School of Nursing" />
-              </div>
-
-              <div>
-                <label className={labelClass}>Nursing Council Reg No <span className="text-red-500">*</span></label>
-                <input type="text" name="nursingCouncilReg" value={formData.nursingCouncilReg} onChange={handleChange} className={inputClass} placeholder="Registration Number" />
-              </div>
-
-              <div>
-                <label className={labelClass}>Educational Qualifications</label>
-                <textarea name="educationalQuals" value={formData.educationalQuals} onChange={handleChange} className={inputClass} rows={3} placeholder="Diploma, Degree, MSc..." />
-              </div>
-
-              <div>
-                <label className={labelClass}>Specialties / Training</label>
-                <textarea name="specialties" value={formData.specialties} onChange={handleChange} className={inputClass} rows={3} placeholder="ICU, Midwifery, etc." />
-              </div>
+                    <label className={labelClass}>Specialties</label>
+                    <textarea name="specialties" value={formData.specialties} onChange={handleChange} className={inputClass} rows={2} />
+                </div>
             </div>
           </section>
 
@@ -487,49 +527,35 @@ const ExternalMembers = () => {
 
           {/* Section: Signature */}
           <section>
-            <h3 className="text-lg font-bold text-gray-900 border-l-4 border-[#2563EB] pl-3 mb-4">Declaration</h3>
-            
             <div className="bg-blue-50 p-4 rounded-lg mb-4">
-              <label className={labelClass}>Upload Signature (Max 500KB) <span className="text-red-500">*</span></label>
+              <label className={labelClass}>Upload Signature <span className="text-red-500">*</span></label>
               <div className="mt-2">
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-[#2563EB] border-dashed rounded-lg cursor-pointer bg-white hover:bg-gray-50 transition-colors">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Upload className="w-8 h-8 text-[#2563EB] mb-2" />
-                    <p className="text-sm text-gray-500"><span className="font-semibold">Tap to upload</span> image</p>
+                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-[#2563EB] border-dashed rounded-lg cursor-pointer bg-white hover:bg-gray-50 transition-colors">
+                  <div className="flex flex-col items-center justify-center">
+                    <Upload className="w-6 h-6 text-[#2563EB] mb-1" />
+                    <p className="text-xs text-gray-500">Tap to upload</p>
                   </div>
                   <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
                 </label>
               </div>
-
               {formData.signature && (
-                <div className="mt-4 flex items-center gap-3 bg-green-100 p-3 rounded border border-green-200">
-                  <Check className="w-5 h-5 text-green-700" />
-                  <span className="text-sm text-green-700 font-medium">Signature uploaded</span>
-                  <img src={formData.signature} alt="Preview" className="h-10 w-auto ml-auto border rounded bg-white" />
+                <div className="mt-2 flex items-center gap-2 bg-green-100 p-2 rounded border border-green-200">
+                  <Check className="w-4 h-4 text-green-700" />
+                  <span className="text-xs text-green-700 font-medium">Uploaded</span>
                 </div>
               )}
             </div>
           </section>
 
           {/* Submit Button */}
-          <div className="pt-4 pb-8">
+          <div className="pt-2 pb-8">
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-4 px-6 bg-gradient-to-r from-[#2563EB] to-[#800000] text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl active:scale-95 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+              className="w-full py-4 px-6 bg-gradient-to-r from-[#2563EB] to-[#800000] text-white text-lg font-bold rounded-xl shadow-lg flex justify-center items-center gap-2"
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                "Submit Application"
-              )}
+              {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin" /> : "Submit Application"}
             </button>
-            <p className="text-center text-xs text-gray-400 mt-4">
-              By submitting, you certify the information is true.
-            </p>
           </div>
 
         </form>
