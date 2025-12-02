@@ -1,11 +1,11 @@
-import React, { useEffect } from "react"; // 1. Added useEffect
+import React, { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
-import { supabase } from "./supabaseClient"; // 2. Ensure Supabase is imported
+import { supabase } from "./supabaseClient";
+import Modal from "./components/Modal"; // 1. Import your reusable Modal
+
 import Auth from "./components/Auth";
-// import Account from "./components/Account";
 import Layout from "./components/Layout";
-import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import AppliedMembers from "./pages/AppliedMembers";
 import AddAppliedMembers from "./pages/AddMembers";
@@ -13,14 +13,15 @@ import ExMember from "./pages/ExMembers";
 import UserManagement from "./pages/AddUser";
 import ProfilePage from "./components/ProfilePage";
 import Form from "./pages/ExternalMembers";
-// import Profile from "./pages/Profile";
 
 export default function App() {
   const { loading, isAuthenticated, user } = useAuth();
+  
+  // 2. State to control the Lock Modal
+  const [showLockModal, setShowLockModal] = useState(false);
 
-  // --- NEW: LOCK ENFORCEMENT LISTENER ---
+  // --- LOCK ENFORCEMENT LISTENER ---
   useEffect(() => {
-    // This listener runs whenever Auth state changes (login, refresh, navigation)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       
       if (session?.user) {
@@ -28,26 +29,26 @@ export default function App() {
         const isLocked = session.user.user_metadata?.is_locked;
 
         if (isLocked) {
-          // 1. Force Sign Out
+          // A. Force Sign Out immediately
           await supabase.auth.signOut();
           
-          // 2. Alert the user
-          alert("Administrator has locked this account. Please contact support.");
-          
-          // 3. Force redirect to Auth page (using window.location because we are outside Router)
-          window.location.href = "/auth"; 
+          // B. Show the Modal (Do NOT redirect yet, let them read the message)
+          setShowLockModal(true); 
         }
       }
     });
 
-    // Cleanup listener on unmount
     return () => {
       subscription.unsubscribe();
     };
   }, []);
-  // ---------------------------------------
 
-  // Show loading state while auth is being checked
+  // 3. Handle closing the modal -> Redirect to Auth
+  const handleLockAcknowledgment = () => {
+    setShowLockModal(false);
+    window.location.href = "/auth"; 
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -61,6 +62,33 @@ export default function App() {
 
   return (
     <Router>
+      {/* 4. Render the Modal Overlay */}
+      <Modal
+        isOpen={showLockModal}
+        onClose={handleLockAcknowledgment} // Clicking 'X' also redirects
+        title="Account Locked"
+        actions={
+          <button
+            onClick={handleLockAcknowledgment}
+            className="px-6 py-2 bg-[#800000] text-white rounded-lg hover:bg-[#600000] transition font-medium shadow-md"
+          >
+            Okay, I Understand
+          </button>
+        }
+      >
+        <div className="flex flex-col gap-2">
+          <p className="font-semibold text-red-600">
+            Access Denied
+          </p>
+          <p>
+            Your account has been locked by an administrator. You have been signed out for security reasons.
+          </p>
+          <p className="text-sm text-gray-500 mt-2">
+            Please contact the system administrator if you believe this is an error.
+          </p>
+        </div>
+      </Modal>
+
       <Routes>
         {/* Public route */}
         <Route path="/" element={<Auth />} />
@@ -75,7 +103,6 @@ export default function App() {
         {/* Protected routes with layout */}
         <Route element={isAuthenticated ? <Layout /> : <Navigate to="/auth" />}>
           <Route path="/dashboard" element={<Dashboard />} />
-          {/* <Route path="/profile" element={<Account />} /> */}
           <Route path="/applied" element={<AppliedMembers />} />
           <Route path="/add" element={<AddAppliedMembers />} />
           <Route path="/ex" element={<ExMember/>} />
@@ -85,7 +112,6 @@ export default function App() {
           <Route 
             path="/manage" 
             element={
-              // Check if the user's role is 'admin'
               user?.user_metadata?.role === 'admin' 
                 ? <UserManagement /> 
                 : <Navigate to="/dashboard" replace />
