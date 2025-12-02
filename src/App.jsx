@@ -1,5 +1,7 @@
+import React, { useEffect } from "react"; // 1. Added useEffect
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
+import { supabase } from "./supabaseClient"; // 2. Ensure Supabase is imported
 import Auth from "./components/Auth";
 // import Account from "./components/Account";
 import Layout from "./components/Layout";
@@ -14,8 +16,36 @@ import Form from "./pages/ExternalMembers";
 // import Profile from "./pages/Profile";
 
 export default function App() {
-  // 1. Get the full 'user' object from your updated useAuth hook
-  const { loading, isAuthenticated, user } = useAuth(); // <--- UPDATED
+  const { loading, isAuthenticated, user } = useAuth();
+
+  // --- NEW: LOCK ENFORCEMENT LISTENER ---
+  useEffect(() => {
+    // This listener runs whenever Auth state changes (login, refresh, navigation)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      
+      if (session?.user) {
+        // Check if the administrator has set the 'is_locked' flag
+        const isLocked = session.user.user_metadata?.is_locked;
+
+        if (isLocked) {
+          // 1. Force Sign Out
+          await supabase.auth.signOut();
+          
+          // 2. Alert the user
+          alert("Administrator has locked this account. Please contact support.");
+          
+          // 3. Force redirect to Auth page (using window.location because we are outside Router)
+          window.location.href = "/auth"; 
+        }
+      }
+    });
+
+    // Cleanup listener on unmount
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+  // ---------------------------------------
 
   // Show loading state while auth is being checked
   if (loading) {
@@ -51,18 +81,17 @@ export default function App() {
           <Route path="/ex" element={<ExMember/>} />
           <Route path="/profile" element={<ProfilePage/>} />
           
-          {/* 2. Create the Admin-only route */}
+          {/* Admin-only route */}
           <Route 
             path="/manage" 
             element={
               // Check if the user's role is 'admin'
               user?.user_metadata?.role === 'admin' 
                 ? <UserManagement /> 
-                : <Navigate to="/dashboard" replace /> // Redirect to dashboard if not admin
+                : <Navigate to="/dashboard" replace />
             } 
           />
         </Route>
-
 
         {/* Catch-all */}
         <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/auth"} />} />

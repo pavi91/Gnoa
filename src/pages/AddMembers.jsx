@@ -81,6 +81,24 @@ const AddAppliedMembers = () => {
   const location = useLocation();
   const prefillMember = location.state?.member || {}; 
 
+  // --- NEW: CONFIGURATION FROM EXTERNAL MEMBERS ---
+  const DIRECT_LOCATION_CATEGORIES = [
+    "Line Ministry", 
+    "Nursing Training School"
+  ];
+
+  const TEXT_INPUT_DESIGNATION_CATEGORIES = [
+    "Line Ministry", 
+    "Nursing Training School", 
+    "Public Health", 
+    "RDHS", 
+    "MOH Divisions"
+  ];
+
+  // --- NEW: HELPER FUNCTIONS ---
+  const isDirectLocation = (category) => DIRECT_LOCATION_CATEGORIES.includes(category);
+  const isTextInputDesignation = (category) => TEXT_INPUT_DESIGNATION_CATEGORIES.includes(category);
+
   const [formData, setFormData] = useState({
     nameInFull: "",
     email: "",
@@ -107,7 +125,6 @@ const AddAppliedMembers = () => {
     nicNumber: "",
   });
 
-  // NOTE: Keeping state definitions even if the display section is commented out.
   const [appliedMembers, setAppliedMembers] = useState([]);
   const [categories, setCategories] = useState([]);
   const [provinces, setProvinces] = useState([]);
@@ -127,7 +144,6 @@ const AddAppliedMembers = () => {
       if (provError) console.error(provError);
       else setProvinces(provData);
 
-      // Hardcoded designations per category (since no table)
       setCategoryDesignations({
         "Hospital Services": [
           "Chief Nursing Officer",
@@ -164,8 +180,15 @@ const AddAppliedMembers = () => {
     fetchInitialData();
   }, []);
 
+  // --- UPDATED: FETCH DISTRICTS LOGIC ---
   useEffect(() => {
     const fetchDistricts = async () => {
+      // If direct location (e.g. Line Ministry), we don't need districts
+      if (isDirectLocation(formData.category)) {
+        setDistricts([]);
+        return;
+      }
+
       if (formData.province) {
         const provinceId = provinces.find(p => p.name === formData.province)?.id;
         if (provinceId) {
@@ -173,7 +196,8 @@ const AddAppliedMembers = () => {
           if (error) console.error(error);
           else {
             setDistricts(data);
-            setFormData(prev => ({ ...prev, district: "", institution: "" }));
+            // We only reset district/institution if they are no longer valid, 
+            // handled mostly in handleChange, but logic here ensures fresh list
           }
         }
       } else {
@@ -182,21 +206,42 @@ const AddAppliedMembers = () => {
       }
     };
     fetchDistricts();
-  }, [formData.province, provinces]);
+  }, [formData.province, provinces, formData.category]);
 
+  // --- UPDATED: FETCH INSTITUTIONS LOGIC ---
   useEffect(() => {
     const fetchInstitutions = async () => {
-      if (formData.category && formData.province && formData.district) {
-        const categoryId = categories.find(c => c.name === formData.category)?.id;
+      if (!formData.category) {
+        setInstitutions([]);
+        return;
+      }
+
+      const categoryId = categories.find(c => c.name === formData.category)?.id;
+      if (!categoryId) return;
+
+      // 1. Direct Location Logic (Category only)
+      if (isDirectLocation(formData.category)) {
+        const { data, error } = await supabase
+          .from("institutions")
+          .select("name")
+          .eq("category_id", categoryId);
+        
+        if (error) console.error(error);
+        else setInstitutions(data.map(i => i.name));
+      } 
+      // 2. Standard Logic (Category + Province + District)
+      else if (formData.province && formData.district) {
         const provinceId = provinces.find(p => p.name === formData.province)?.id;
         const districtId = districts.find(d => d.name === formData.district)?.id;
-        if (categoryId && provinceId && districtId) {
+        
+        if (provinceId && districtId) {
           const { data, error } = await supabase
             .from("institutions")
             .select("name")
             .eq("category_id", categoryId)
             .eq("province_id", provinceId)
             .eq("district_id", districtId);
+            
           if (error) console.error(error);
           else setInstitutions(data.map(i => i.name));
         }
@@ -251,10 +296,18 @@ const AddAppliedMembers = () => {
     const { name, value } = e.target;
     const updates = { [name]: value };
 
+    // Updated Change Logic from ExternalMembers
     if (name === "category") {
       updates.designation = "";
       updates.institution = "";
+      // If switching to a direct location, clear geographic fields
+      if (isDirectLocation(value)) {
+        updates.province = "";
+        updates.district = "";
+        updates.rdhs = "";
+      }
     }
+    
     if (name === "province") {
       updates.district = "";
       updates.institution = "";
@@ -268,19 +321,7 @@ const AddAppliedMembers = () => {
 
   const handleSelectChange = (name, value) => {
     const updates = { [name]: value };
-
-    if (name === "category") {
-      updates.designation = "";
-      updates.institution = "";
-    }
-    if (name === "province") {
-      updates.district = "";
-      updates.institution = "";
-    }
-    if (name === "district") {
-      updates.institution = "";
-    }
-
+    // Similar logic can be applied here if needed, but usually this is for custom dropdowns
     setFormData(prev => ({ ...prev, ...updates }));
   };
 
@@ -326,7 +367,6 @@ const AddAppliedMembers = () => {
     const { error } = await supabase.from("form_responses").insert([responseData]);
     if (error) console.error("Supabase Insert Error:", error);
     else {
-      // NOTE: We refetch applied members but no longer display them.
       const { data, error: fetchError } = await supabase.from("form_responses").select("*");
       if (fetchError) console.error(fetchError);
       else setAppliedMembers(data);
@@ -360,15 +400,6 @@ const AddAppliedMembers = () => {
     }
   };
 
-  const handleRemoveMember = async (id) => {
-    const { error } = await supabase.from("form_responses").delete().eq("id", id);
-    if (error) console.error(error);
-    else {
-      setAppliedMembers(appliedMembers.filter(m => m.id !== id));
-    }
-  };
-
-
   // --- NEW SIGNATURE HELPER FUNCTIONS ---
   const getEmbedUrl = (url) => {
     if (!url || url.startsWith('data:')) {
@@ -400,11 +431,9 @@ const AddAppliedMembers = () => {
       newWindow.document.write(`<img src="${url}" alt="Signature" style="max-width: 100%; height: auto;">`);
     }
   };
-  // --- END NEW SIGNATURE HELPER FUNCTIONS ---
 
 
   return (
-    // ✅ FIX: Removed bg-[#F4F7F8] to let the white Layout background show through
     <div className="min-h-screen py-12 px-4">
       <div className="max-w-7xl mx-auto">
         <div className="bg-white shadow-xl rounded-2xl overflow-hidden">
@@ -416,6 +445,7 @@ const AddAppliedMembers = () => {
           </div>
 
           <div className="p-8">
+            {/* ... Personal Information Section remains the same ... */}
             <div className="mb-8">
               <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-[#2563EB]">
                 Personal Information
@@ -569,11 +599,14 @@ const AddAppliedMembers = () => {
               </div>
             </div>
 
+            {/* --- UPDATED: DESIGNATION & WORK PLACE SECTION --- */}
             <div className="mb-8">
               <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-[#2563EB]">
-                Designation
+                Work Place & Designation
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* 1. Category */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Category <span className="text-red-500">*</span>
@@ -593,54 +626,63 @@ const AddAppliedMembers = () => {
                   </select>
                 </div>
 
+                {/* 2. Designation (Logic updated to switch between Input/Select) */}
                 {formData.category && (
                   <div className="fade-in">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Designation <span className="text-red-500">*</span>
                     </label>
+                    {isTextInputDesignation(formData.category) ? (
+                      <input
+                        type="text"
+                        name="designation"
+                        value={formData.designation}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
+                        placeholder="Enter your exact Designation"
+                      />
+                    ) : (
+                      <select
+                        name="designation"
+                        value={formData.designation}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
+                      >
+                        <option value="">Select designation</option>
+                        {categoryDesignations[formData.category]?.map((des, idx) => (
+                          <option key={idx} value={des}>
+                            {des}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
+
+                {/* 3. Province (Hidden if Direct Location) */}
+                {formData.category && !isDirectLocation(formData.category) && (
+                  <div className="fade-in">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Province <span className="text-red-500">*</span>
+                    </label>
                     <select
-                      name="designation"
-                      value={formData.designation}
+                      name="province"
+                      value={formData.province}
                       onChange={handleChange}
                       className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
                     >
-                      <option value="">Select designation</option>
-                      {categoryDesignations[formData.category]?.map((des, idx) => (
-                        <option key={idx} value={des}>
-                          {des}
+                      <option value="">Select province</option>
+                      {provinces.map((prov) => (
+                        <option key={prov.id} value={prov.name}>
+                          {prov.name}
                         </option>
                       ))}
                     </select>
                   </div>
                 )}
-              </div>
-            </div>
 
-            <div className="mb-8">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-[#2563EB]">
-                Work Place
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Province <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="province"
-                    value={formData.province}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] transition-all"
-                  >
-                    <option value="">Select province</option>
-                    {provinces.map((prov) => (
-                      <option key={prov.id} value={prov.name}>
-                        {prov.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {formData.province && (
+                {/* 4. District (Hidden if Direct Location) */}
+                {formData.province && !isDirectLocation(formData.category) && (
                   <div className="fade-in">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       District <span className="text-red-500">*</span>
@@ -661,7 +703,8 @@ const AddAppliedMembers = () => {
                   </div>
                 )}
 
-                {formData.district && (
+                {/* 5. Institution (Shown if Direct Location OR District Selected) */}
+                {(isDirectLocation(formData.category) || formData.district) && (
                   <div className="fade-in">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Institution <span className="text-red-500">*</span>
@@ -675,6 +718,7 @@ const AddAppliedMembers = () => {
                   </div>
                 )}
 
+                {/* 6. RDHS */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     RDHS
@@ -828,10 +872,6 @@ const AddAppliedMembers = () => {
             </div>
           </div>
         </div>
-
-        {/* // --- APPLIED MEMBERS LIST SECTION (COMMENTED OUT) ---
-          ... (This section remains commented out) ...
-        */}
       </div>
 
       <style>{`

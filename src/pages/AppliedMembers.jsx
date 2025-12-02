@@ -76,7 +76,7 @@ const MemberList = () => {
         maritalStatus: member.maritalStatus || 'N/A',
         employmentNumber: member.employmentNumber || 'N/A',
         university: member.collegeUniversity || 'N/A',
-        signature: member.signatureUrl || null,
+        signature: member.signature || null,
       };
 
       const blob = await pdf(<MembershipFormDoc data={pdfData} />).toBlob();
@@ -230,7 +230,7 @@ const MemberList = () => {
       {/* --- HEADER --- */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-[#333]">Members Directory</h2>
+          <h2 className="text-2xl font-bold text-[#333]">Applications</h2>
           <p className="text-gray-600 mt-1">
             <span className="font-semibold text-[#800000]">{filteredMembers.length}</span> members matching
             {filterStatus !== 'all' && ` • ${filterStatus}`}
@@ -399,9 +399,9 @@ const MemberList = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          member.status === 'approved'
+                          member.status === 'Verified'
                             ? 'bg-green-100 text-green-800'
-                            : member.status === 'pending'
+                            : member.status === 'Pending'
                             ? 'bg-yellow-100 text-yellow-800'
                             : 'bg-red-100 text-red-800'
                         }`}
@@ -428,7 +428,7 @@ const MemberList = () => {
                         </button>
 
                         {/* Verify Button (Conditional) */}
-                        {member.status === 'pending' && (
+                        {member.status === 'Pending' && (
                           <button 
                             onClick={() => handleVerify(member)}
                             disabled={deletingId === member.id || downloadingId === member.id}
@@ -440,7 +440,7 @@ const MemberList = () => {
                         )}
                         
                         {/* Status Badge (Non-pending) */}
-                        {member.status !== 'pending' && (
+                        {member.status !== 'Pending' && (
                           <span 
                               className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-500 bg-gray-100 cursor-not-allowed"
                           >
