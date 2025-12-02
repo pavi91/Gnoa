@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Upload, Check, AlertCircle, Loader2 } from "lucide-react";
+import { Search, Check, AlertCircle, Loader2, Eraser, PenTool } from "lucide-react"; // Added PenTool, Eraser, removed Upload
 import { supabase } from '../supabaseClient';
+import SignatureCanvas from 'react-signature-canvas'; // 1. Import the library
 
-// --- SearchableDropdown Component ---
+// --- SearchableDropdown Component (Unchanged) ---
 const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -76,15 +77,15 @@ const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
 // --- ExternalMembers Component ---
 const ExternalMembers = () => {
   
+  // 2. Create a Ref for the signature canvas
+  const sigPadRef = useRef({});
+
   // --- CONFIGURATION ---
-  // 1. Categories that skip Province/District selection (Direct to Institution)
   const DIRECT_LOCATION_CATEGORIES = [
     "Line Ministry", 
     "Nursing Training School"
   ];
 
-  // 2. Categories that require a TEXT INPUT for Designation (instead of a dropdown)
-  // Ensure the names here match EXACTLY what is in your 'categories' table
   const TEXT_INPUT_DESIGNATION_CATEGORIES = [
     "Line Ministry", 
     "Nursing Training School", 
@@ -118,13 +119,11 @@ const ExternalMembers = () => {
   const isDirectLocation = (category) => DIRECT_LOCATION_CATEGORIES.includes(category);
   const isTextInputDesignation = (category) => TEXT_INPUT_DESIGNATION_CATEGORIES.includes(category);
    
-  // Hardcoded designations (Fallback for categories NOT in the text input list)
   const categoryDesignations = {
     "Hospital Services": ["Chief Nursing Officer", "Deputy Chief Nursing Officer", "Senior Nursing Officer", "Nursing Officer", "Staff Nurse", "Ward Manager", "Clinical Nurse Specialist"],
     "Education": ["Nursing Tutor", "Senior Nursing Tutor", "Principal - School of Nursing", "Vice Principal - School of Nursing", "Lecturer in Nursing", "Clinical Instructor"],
   };
 
-  // 1. Fetch Categories & Provinces
   useEffect(() => {
     const fetchInitialData = async () => {
       const { data: catData } = await supabase.from("categories").select("id, name");
@@ -136,15 +135,12 @@ const ExternalMembers = () => {
     fetchInitialData();
   }, []);
 
-  // 2. Fetch Districts
   useEffect(() => {
     const fetchDistricts = async () => {
-      // Skip fetching districts if it's a direct location category
       if (isDirectLocation(formData.category)) {
         setDistricts([]);
         return;
       }
-
       if (formData.province) {
         const provinceId = provinces.find(p => p.name === formData.province)?.id;
         if (provinceId) {
@@ -161,39 +157,25 @@ const ExternalMembers = () => {
     fetchDistricts();
   }, [formData.province, provinces, formData.category]);
 
-  // 3. Fetch Institutions
   useEffect(() => {
     const fetchInstitutions = async () => {
       if (!formData.category) {
         setInstitutions([]);
         return;
       }
-
       const categoryId = categories.find(c => c.name === formData.category)?.id;
       if (!categoryId) return;
 
-      // CASE A: Direct Categories (Fetch only by category_id)
       if (isDirectLocation(formData.category)) {
-        const { data } = await supabase
-          .from("institutions")
-          .select("name")
-          .eq("category_id", categoryId);
-        
+        const { data } = await supabase.from("institutions").select("name").eq("category_id", categoryId);
         if (data) setInstitutions(data.map(i => i.name));
       } 
-      // CASE B: Standard Flow (Fetch by Category + Province + District)
       else if (formData.province && formData.district) {
         const provinceId = provinces.find(p => p.name === formData.province)?.id;
         const districtId = districts.find(d => d.name === formData.district)?.id;
         
         if (provinceId && districtId) {
-          const { data } = await supabase
-            .from("institutions")
-            .select("name")
-            .eq("category_id", categoryId)
-            .eq("province_id", provinceId)
-            .eq("district_id", districtId);
-          
+          const { data } = await supabase.from("institutions").select("name").eq("category_id", categoryId).eq("province_id", provinceId).eq("district_id", districtId);
           if (data) setInstitutions(data.map(i => i.name));
         }
       } else {
@@ -206,13 +188,9 @@ const ExternalMembers = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     const updates = { [name]: value };
-
-    // Reset dependencies
     if (name === "category") {
         updates.designation = "";
         updates.institution = ""; 
-        
-        // If switching TO a Direct Location category, clear province/district
         if (isDirectLocation(value)) {
             updates.province = "";
             updates.district = "";
@@ -221,7 +199,6 @@ const ExternalMembers = () => {
     }
     if (name === "province") Object.assign(updates, { district: "", institution: "" });
     if (name === "district") Object.assign(updates, { institution: "" });
-
     setFormData(prev => ({ ...prev, ...updates }));
   };
 
@@ -230,25 +207,24 @@ const ExternalMembers = () => {
      setFormData(prev => ({ ...prev, ...updates }));
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    setSubmitStatus({ type: "", message: "" });
+  // 3. New Function to handle Signature Drawing
+  const handleSignatureEnd = () => {
+    if (sigPadRef.current) {
+        // toDataURL() returns a base64 string, which works perfectly with your existing submit logic
+        const signatureData = sigPadRef.current.toDataURL(); 
+        setFormData(prev => ({ ...prev, signature: signatureData }));
+        // Clear error messages related to signature if any
+        if(submitStatus.message && submitStatus.message.includes("signature")) {
+            setSubmitStatus({ type: "", message: "" });
+        }
+    }
+  };
 
-    if (file) {
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        setSubmitStatus({ type: "error", message: "Only JPG, PNG, or WEBP images allowed." });
-        return;
-      }
-      if (file.size > 500 * 1024) {
-        setSubmitStatus({ type: "error", message: "Signature image must be less than 500KB." });
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setFormData(prev => ({ ...prev, signature: event.target.result }));
-      };
-      reader.readAsDataURL(file);
+  // 4. Function to clear the signature
+  const clearSignature = () => {
+    if (sigPadRef.current) {
+        sigPadRef.current.clear();
+        setFormData(prev => ({ ...prev, signature: null }));
     }
   };
 
@@ -258,12 +234,9 @@ const ExternalMembers = () => {
       "gender", "category", "firstAppointmentDate", "employmentNumber", 
       "collegeOfNursing", "nursingCouncilReg", "signature", "designation", "institution"
     ];
-    
-    // Province/District required ONLY if NOT a Direct Location category
     if (formData.category && !isDirectLocation(formData.category)) {
         required.push("province", "district");
     }
-
     for (let field of required) {
       if (!formData[field]) return false;
     }
@@ -289,6 +262,7 @@ const ExternalMembers = () => {
 
     try {
       const cleanData = {
+        category: formData.category,
         email: formData.email.trim(),
         gender: formData.gender,
         designation: formData.designation.trim(),
@@ -308,8 +282,8 @@ const ExternalMembers = () => {
         college_of_nursing_university: formData.collegeOfNursing.trim(),
         nursing_council_registration_number: formData.nursingCouncilReg.trim(),
         specialties_special_trainings: formData.specialties.trim(),
-        signature: formData.signature,
-        timestamp: new Date().toISOString(),
+        signature: formData.signature, // This is now the Data URL from Canvas
+        // timestamp: new Date().toISOString(),
         dob: formData.dob, 
         first_appointment_date: formData.firstAppointmentDate,
       };
@@ -319,6 +293,10 @@ const ExternalMembers = () => {
       if (error) throw error;
 
       setSubmitStatus({ type: "success", message: "Application submitted successfully!" });
+      
+      // Clear canvas on success
+      if (sigPadRef.current) sigPadRef.current.clear();
+
       setFormData({
         nameInFull: "", email: "", officialAddress: "", personalAddress: "", dob: "",
         firstAppointmentDate: "", phonePersonal: "", whatsappNumber: "", gender: "",
@@ -424,7 +402,6 @@ const ExternalMembers = () => {
                 </select>
               </div>
 
-              {/* LOCATION FIELDS - SHOW ONLY IF NOT A "DIRECT LOCATION" CATEGORY */}
               {formData.category && !isDirectLocation(formData.category) && (
                 <div className="fade-in space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -448,7 +425,6 @@ const ExternalMembers = () => {
                 </div>
               )}
 
-              {/* INSTITUTION - SHOW IF "DIRECT LOCATION" *OR* DISTRICT SELECTED */}
               {(isDirectLocation(formData.category) || formData.district) && (
                 <div className="fade-in">
                     <label className={labelClass}>Institution <span className="text-red-500">*</span></label>
@@ -461,12 +437,10 @@ const ExternalMembers = () => {
                 </div>
               )}
 
-              {/* DESIGNATION FIELD - RENDER AS TEXT INPUT OR DROPDOWN */}
               {formData.category && (
                 <div className="fade-in">
                   <label className={labelClass}>Designation <span className="text-red-500">*</span></label>
                   {isTextInputDesignation(formData.category) ? (
-                    // Text Input (For RDHS, Line Ministry, Nursing School, Public Health, MOH Divisions)
                     <input
                       type="text"
                       name="designation"
@@ -476,7 +450,6 @@ const ExternalMembers = () => {
                       placeholder="Enter your exact Designation"
                     />
                   ) : (
-                    // Dropdown (For other categories)
                     <select name="designation" value={formData.designation} onChange={handleChange} className={inputClass}>
                       <option value="">Select Designation</option>
                       {categoryDesignations[formData.category]?.map((des, idx) => <option key={idx} value={des}>{des}</option>)}
@@ -525,25 +498,52 @@ const ExternalMembers = () => {
 
           <hr className="border-gray-100" />
 
-          {/* Section: Signature */}
+          {/* Section: Signature (REPLACED) */}
           <section>
             <div className="bg-blue-50 p-4 rounded-lg mb-4">
-              <label className={labelClass}>Upload Signature <span className="text-red-500">*</span></label>
-              <div className="mt-2">
-                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-[#2563EB] border-dashed rounded-lg cursor-pointer bg-white hover:bg-gray-50 transition-colors">
-                  <div className="flex flex-col items-center justify-center">
-                    <Upload className="w-6 h-6 text-[#2563EB] mb-1" />
-                    <p className="text-xs text-gray-500">Tap to upload</p>
-                  </div>
-                  <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
-                </label>
+              <label className={labelClass}>Draw Signature <span className="text-red-500">*</span></label>
+              
+              {/* Signature Canvas Container */}
+              <div className="mt-2 border-2 border-[#2563EB] border-dashed rounded-lg bg-white overflow-hidden relative group">
+                <SignatureCanvas 
+                    ref={sigPadRef}
+                    penColor="black"
+                    velocityFilterWeight={0.7}
+                    canvasProps={{
+                        className: "w-full h-40 cursor-crosshair",
+                    }}
+                    onEnd={handleSignatureEnd}
+                />
+                
+                {/* Overlay Instruction (disappears when drawn) */}
+                {!formData.signature && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40">
+                         <div className="flex flex-col items-center">
+                            <PenTool className="w-6 h-6 text-gray-400 mb-1" />
+                            <p className="text-xs text-gray-500">Sign Here</p>
+                        </div>
+                    </div>
+                )}
               </div>
-              {formData.signature && (
-                <div className="mt-2 flex items-center gap-2 bg-green-100 p-2 rounded border border-green-200">
-                  <Check className="w-4 h-4 text-green-700" />
-                  <span className="text-xs text-green-700 font-medium">Uploaded</span>
-                </div>
-              )}
+
+              {/* Controls */}
+              <div className="flex justify-between items-center mt-2">
+                 <button
+                    type="button"
+                    onClick={clearSignature}
+                    className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700 transition-colors font-medium"
+                 >
+                    <Eraser className="w-4 h-4" />
+                    Clear Signature
+                 </button>
+
+                 {formData.signature && (
+                    <div className="flex items-center gap-2 bg-green-100 px-2 py-1 rounded border border-green-200">
+                        <Check className="w-4 h-4 text-green-700" />
+                        <span className="text-xs text-green-700 font-medium">Captured</span>
+                    </div>
+                 )}
+              </div>
             </div>
           </section>
 

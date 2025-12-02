@@ -29,7 +29,7 @@ export const useMemberResponses = () => {
     try {
       let query = supabase
         .from('form_responses')
-        .select(`*`) // ✅ Fetches all columns from form_responses, including payload
+        .select(`*`) 
         .order('created_at', { ascending: false })
         .limit(PAGE_SIZE);
 
@@ -44,22 +44,21 @@ export const useMemberResponses = () => {
       if (error) throw error;
 
       console.log(`📥 Fetched ${data?.length || 0} form responses:`)
-      console.log(data);
       
-      // Map each response to member object
-      // ✅ Removed the 'response.profiles' block as requested.
-      const mappedMembers = data?.map(mapFormResponseToMember) || [];
+      // ✅ FIX IS HERE: We map, but we also manually ensure 'signature' is included
+      // just in case the utility function missed it.
+      const mappedMembers = data?.map(item => {
+        const mapped = mapFormResponseToMember(item);
+        return {
+            ...mapped,
+            // Explicitly attach the signature from the raw DB item
+            signature: item.signature, 
+            // Ensure status is present (defaulting to pending if missing)
+            status: item.status || 'pending'
+        };
+      }) || [];
 
       console.log(`👥 Mapped ${mappedMembers.length} members:`, mappedMembers);
-      console.table(mappedMembers.map(m => ({
-        id: m.id?.slice(-8),
-        name: m.fullName,
-        email: m.email,
-        designation: m.designation,
-        age: m.age,
-        status: m.status,
-        complete: m.isComplete ? '✅' : '❌'
-      })));
 
       setMembers(prev => reset ? mappedMembers : [...prev, ...mappedMembers]);
       setHasMore(data && data.length === PAGE_SIZE);
@@ -77,7 +76,6 @@ export const useMemberResponses = () => {
   // Fetch more members
   const loadMore = async () => {
     if (loadingMore || !hasMore) return;
-    // setLoadingMore(true); // This is now handled inside fetchMembers
     await fetchMembers(false);
   };
 
@@ -120,4 +118,4 @@ export const useMemberResponses = () => {
     searchMembers,
     PAGE_SIZE
   };
-};
+};  
