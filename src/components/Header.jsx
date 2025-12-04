@@ -38,13 +38,16 @@ const Header = ({ onMenuClick }) => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    // Optionally, redirect to login page or update app state
-    window.location.href = '/login'; // Adjust based on your routing
+    window.location.href = '/login'; 
   };
 
   const name = user?.user_metadata?.name || 'User';
   const initials = name.split(' ').map(word => word[0]).join('').toUpperCase();
-  const role = user?.user_metadata?.role === 'admin' ? 'Administrator' : 'User';
+  
+  // Check raw role for logic
+  const rawRole = user?.user_metadata?.role;
+  // Display text
+  const roleDisplay = rawRole === 'admin' ? 'Administrator' : 'User';
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 border-b border-gray-200/50 shadow-sm">
@@ -77,20 +80,25 @@ const Header = ({ onMenuClick }) => {
             <div className="profile-dropdown absolute right-0 mt-2 w-56 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 py-2 z-50">
               <div className="px-4 py-3 border-b border-gray-100">
                 <p className="font-semibold text-gray-900">{name}</p>
-                <p className="text-xs text-gray-500">{role}</p>
+                <p className="text-xs text-gray-500">{roleDisplay}</p>
               </div>
-              <div className="py-1">
-                <button
-                  className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50/70 transition-colors"
-                  onClick={() => {
-                    setShowProfileMenu(false);
-                    navigate("/profile");
-                  }}
-                >
-                  <User size={16} />
-                  Profile
-                </button>
-              </div>
+              
+              {/* Only show Profile button if user is Admin */}
+              {rawRole === 'admin' && (
+                <div className="py-1">
+                  <button
+                    className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50/70 transition-colors"
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      navigate("/profile");
+                    }}
+                  >
+                    <User size={16} />
+                    Profile
+                  </button>
+                </div>
+              )}
+
               <div className="border-t border-gray-100 py-1">
                 <button 
                   onClick={handleLogout}

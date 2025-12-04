@@ -11,10 +11,11 @@ import {
   ShieldCheck, 
   Download,
   Trash2, 
-  X, // <--- CHANGE 1: Import X
-  AlertTriangle, // <--- CHANGE 1: Import AlertTriangle
+  X, 
+  AlertTriangle, 
   ChevronLeft,
   ChevronRight,
+  Info 
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { pdf } from '@react-pdf/renderer';
@@ -28,10 +29,12 @@ const MemberList = () => {
   const [downloadingId, setDownloadingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   
-  // <--- CHANGE 2: Add state for modal ---
+  // Delete Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState(null);
-  // ------------------------------------
+
+  // Details Modal State
+  const [detailsMember, setDetailsMember] = useState(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   
@@ -49,7 +52,7 @@ const MemberList = () => {
     getMembersByStatus
   } = useMemberResponses();
 
-  // Helper (No changes)
+  // Helper
   const getValidMaritalStatus = (status) => {
     if (status === 'Yes' || status === 'Married') return 'Married';
     if (status === 'No' || status === 'Single') return 'Single';
@@ -59,17 +62,20 @@ const MemberList = () => {
     return "";
   };
 
-  // Handle PDF Download (No changes)
+  // Handle PDF Download
   const handleDownloadPDF = async (member) => {
     setDownloadingId(member.id);
     try {
+      // FIX: Check for 'dob' (database column) or 'dateOfBirth' (frontend alias)
+      const dobValue = member.dob || member.dateOfBirth;
+
       const pdfData = {
         fullName: member.fullName || 'N/A',
         email: member.email || 'N/A',
         designation: member.designation || 'N/A',
         officialAddress: member.officialAddress || 'N/A',
         personalAddress: member.personalAddress || 'N/A',
-        dob: member.dateOfBirth ? new Date(member.dateOfBirth) : null,
+        dob: dobValue ? new Date(dobValue) : null, // Updated here
         firstAppointmentDate: member.firstAppointmentDate ? new Date(member.firstAppointmentDate) : null,
         mobile: member.phoneNumber || 'N/A',
         gender: member.gender || 'N/A',
@@ -98,13 +104,16 @@ const MemberList = () => {
   };
 
 
-  // Handle Verify (No changes)
+  // Handle Verify
   const handleVerify = (member) => {
+    // FIX: Check for 'dob' or 'dateOfBirth'
+    const dobValue = member.dob || member.dateOfBirth;
+
     const memberData = {
       fullName: member.fullName || '',
       email: member.email || '',
       nicNumber: member.nicNumber || '',
-      dob: member.dateOfBirth ? new Date(member.dateOfBirth).toISOString().split('T')[0] : '',
+      dob: dobValue ? new Date(dobValue).toISOString().split('T')[0] : '', // Updated here
       mobile: member.phoneNumber || '',
       whatsappNumber: member.whatsappNumber || '', 
       gender: member.gender || '',
@@ -127,56 +136,39 @@ const MemberList = () => {
       signature: member.signatureUrl || null,
     };
     
-    if (!member.category) {
-      console.warn("Warning: Navigating without a 'category'. Dropdown logic in AddMembers may be incomplete.");
-    }
-
     navigate('/add', { state: { member: memberData } });
   };
 
-  // <--- CHANGE 3: Add Modal Handlers ---
-  
-  // This function just opens the modal
+  // Delete Modal Handlers
   const openDeleteModal = (member) => {
     setMemberToDelete(member);
     setIsModalOpen(true);
   };
 
-  // This function just closes the modal
   const closeDeleteModal = () => {
-    if (deletingId) return; // Don't close if delete is in progress
+    if (deletingId) return; 
     setMemberToDelete(null);
     setIsModalOpen(false);
   };
 
-  // This function runs the actual deletion logic
   const handleConfirmDelete = async () => {
     if (!memberToDelete) return;
 
     setDeletingId(memberToDelete.id);
     try {
-      // ---
-      // TODO: Add your data deletion logic here.
-      // e.g., call a function from your hook or Supabase client
-      // const { error } = await supabase.from('members').delete().match({ id: memberToDelete.id });
-      // if (error) throw error;
-      // ---
-      
       console.log(`Simulating delete for member ID: ${memberToDelete.id}`);
       await new Promise(resolve => setTimeout(resolve, 750)); 
       
-      refresh(); // Refresh data
-      closeDeleteModal(); // Close modal on success
+      refresh(); 
+      closeDeleteModal(); 
 
     } catch (error) {
       console.error("Error deleting member:", error);
-      // You could add an error message state to show in the modal
     } finally {
-      setDeletingId(null); // Stop the spinner regardless of outcome
+      setDeletingId(null); 
     }
   };
-  // ------------------------------------
-  
+
   // filtering logic
   const filteredMembers = useMemo(() => {
     let result = members;
@@ -222,6 +214,14 @@ const MemberList = () => {
       </div>
     );
   }
+
+  // Helper component for Data Rows in Modal
+  const DetailRow = ({ label, value }) => (
+    <div className="py-2 border-b border-gray-100 last:border-0">
+      <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</dt>
+      <dd className="mt-1 text-sm text-gray-900 font-medium break-words">{value || "—"}</dd>
+    </div>
+  );
 
   // --- Main Component JSX ---
   return (
@@ -303,7 +303,6 @@ const MemberList = () => {
         <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              {/* ... table head ... */}
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -335,7 +334,6 @@ const MemberList = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {membersOnPage.map((member) => ( 
                   <tr key={member.id} className="hover:bg-gray-50">
-                    
                     {/* Full Name */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -413,6 +411,16 @@ const MemberList = () => {
                     {/* Actions */}
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end space-x-2">
+                        
+                        {/* Info Button */}
+                        <button
+                          onClick={() => setDetailsMember(member)}
+                          className="inline-flex items-center justify-center p-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-blue-700 bg-white hover:bg-blue-50 focus:outline-none transition-colors"
+                          title="View Details"
+                        >
+                          <Info className="h-4 w-4" />
+                        </button>
+
                         {/* Download Button */}
                         <button
                           onClick={() => handleDownloadPDF(member)}
@@ -450,7 +458,6 @@ const MemberList = () => {
 
                         {/* Delete Button */}
                         <button
-                          // <--- CHANGE 4: Update onClick
                           onClick={() => openDeleteModal(member)}
                           disabled={downloadingId === member.id || deletingId === member.id}
                           className="inline-flex items-center justify-center p-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors disabled:opacity-50 disabled:cursor-wait"
@@ -476,7 +483,6 @@ const MemberList = () => {
       {/* --- PAGINATION CONTROL --- */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg shadow-sm">
-          {/* ... pagination controls (no changes) ... */}
            <div className="flex-1 flex justify-between sm:hidden">
             <button
               onClick={() => handlePageChange(currentPage - 1)}
@@ -542,17 +548,12 @@ const MemberList = () => {
         </div>
       )}
 
-      {/* <--- CHANGE 5: Add Delete Confirmation Modal --- */}
+      {/* Delete Confirmation Modal */}
       {isModalOpen && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity"
-          aria-labelledby="modal-title"
-          role="dialog"
-          aria-modal="true"
         >
           <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 m-4">
-            
-            {/* Modal Close Button */}
             <button 
               onClick={closeDeleteModal}
               disabled={!!deletingId}
@@ -563,16 +564,13 @@ const MemberList = () => {
             </button>
 
             <div className="flex items-start">
-              {/* Icon (Optional, but good for UX) */}
               <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
                 <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
               </div>
               <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                {/* Modal Title */}
-                <h3 className="text-lg leading-6 font-bold text-gray-900" id="modal-title">
+                <h3 className="text-lg leading-6 font-bold text-gray-900">
                   Are you sure you want to delete?
                 </h3>
-                {/* Modal Description */}
                 <div className="mt-2">
                   <p className="text-sm text-gray-500">
                     Accepting this will permanently remove the record
@@ -585,7 +583,6 @@ const MemberList = () => {
               </div>
             </div>
 
-            {/* Modal Action Buttons */}
             <div className="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse sm:space-x-4 sm:space-x-reverse">
               <button
                 type="button"
@@ -615,7 +612,130 @@ const MemberList = () => {
           </div>
         </div>
       )}
-      {/* ------------------------------------------- */}
+
+      {/* Member Details Modal */}
+      {detailsMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+            
+            {/* Header */}
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-gray-50 to-white">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-full bg-[#800000] text-white flex items-center justify-center shadow-md">
+                   {detailsMember.profile?.avatarUrl ? (
+                     <img src={detailsMember.profile.avatarUrl} alt="" className="h-12 w-12 rounded-full object-cover"/>
+                   ) : (
+                     <span className="text-lg font-bold">
+                       {detailsMember.fullName ? detailsMember.fullName.charAt(0) : "U"}
+                     </span>
+                   )}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">{detailsMember.fullName}</h3>
+                  <p className="text-sm text-gray-500">{detailsMember.email}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setDetailsMember(null)}
+                className="p-2 bg-white rounded-full hover:bg-gray-100 text-gray-500 shadow-sm border border-gray-200 transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Scrollable Body */}
+            <div className="overflow-y-auto p-6 flex-1 bg-gray-50/50">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Personal Information */}
+                <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100">
+                  <h4 className="text-sm font-bold text-[#800000] mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
+                    <User size={16} /> Personal Information
+                  </h4>
+                  <div className="space-y-1">
+                    <DetailRow label="NIC Number" value={detailsMember.nicNumber} />
+                    {/* FIX: Check both 'dob' and 'dateOfBirth' */}
+                    <DetailRow label="Date of Birth" value={detailsMember.dob || detailsMember.dateOfBirth} />
+                    <DetailRow label="Gender" value={detailsMember.gender} />
+                    <DetailRow label="Marital Status" value={detailsMember.maritalStatus} />
+                    <DetailRow label="Age" value={detailsMember.age} />
+                  </div>
+                </div>
+
+                {/* Contact Information */}
+                <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100">
+                  <h4 className="text-sm font-bold text-[#800000] mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
+                    <Phone size={16} /> Contact Details
+                  </h4>
+                  <div className="space-y-1">
+                    <DetailRow label="Mobile" value={detailsMember.phoneNumber} />
+                    <DetailRow label="WhatsApp" value={detailsMember.whatsappNumber} />
+                    <DetailRow label="Personal Address" value={detailsMember.personalAddress} />
+                    <DetailRow label="Official Address" value={detailsMember.officialAddress} />
+                  </div>
+                </div>
+
+                {/* Professional Information */}
+                <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100">
+                  <h4 className="text-sm font-bold text-[#800000] mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
+                    <ShieldCheck size={16} /> Professional Info
+                  </h4>
+                  <div className="space-y-1">
+                    <DetailRow label="Designation" value={detailsMember.designation} />
+                    <DetailRow label="Employment Number" value={detailsMember.employmentNumber} />
+                    <DetailRow label="First Appointment" value={detailsMember.firstAppointmentDate} />
+                    <DetailRow label="Organization Type" value={detailsMember.organizationType} />
+                    <DetailRow label="Province" value={detailsMember.province} />
+                    <DetailRow label="District" value={detailsMember.district} />
+                    {/* <DetailRow label="RDHS" value={detailsMember.rdhs} /> */}
+                    <DetailRow label="Current Status" value={detailsMember.currentStatus} />
+                  </div>
+                </div>
+
+                {/* Educational Info */}
+                <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100">
+                  <h4 className="text-sm font-bold text-[#800000] mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
+                    <Calendar size={16} /> Educational Qualifications
+                  </h4>
+                  <div className="space-y-1">
+                    <DetailRow label="College / University" value={detailsMember.collegeUniversity} />
+                    <DetailRow label="Nursing Council Reg." value={detailsMember.nursingCouncilNumber} />
+                    <DetailRow label="Qualifications" value={detailsMember.educationalQualifications} />
+                    <DetailRow label="Specialties" value={detailsMember.specialties?.join(', ')} />
+                  </div>
+                </div>
+
+                {/* Signature (Full Width) */}
+                {detailsMember.signatureUrl && (
+                  <div className="md:col-span-2 bg-white p-5 rounded-lg shadow-sm border border-gray-100">
+                    <h4 className="text-sm font-bold text-[#800000] mb-4 pb-2 border-b border-gray-100">
+                       Signature
+                    </h4>
+                    <div className="flex justify-start">
+                       <img 
+                          src={detailsMember.signatureUrl} 
+                          alt="Signature" 
+                          className="max-h-24 border border-gray-200 rounded p-1"
+                        />
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+              <button 
+                onClick={() => setDetailsMember(null)}
+                className="px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition shadow-sm text-sm font-medium"
+              >
+                Close Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

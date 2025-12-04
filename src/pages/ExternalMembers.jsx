@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Check, AlertCircle, Loader2, Eraser, PenTool } from "lucide-react"; // Added PenTool, Eraser, removed Upload
+import { Search, Check, AlertCircle, Loader2, Eraser, PenTool } from "lucide-react";
 import { supabase } from '../supabaseClient';
-import SignatureCanvas from 'react-signature-canvas'; // 1. Import the library
+import SignatureCanvas from 'react-signature-canvas';
 
 // --- SearchableDropdown Component (Unchanged) ---
 const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
@@ -77,7 +77,6 @@ const SearchableDropdown = ({ options, value, onChange, placeholder }) => {
 // --- ExternalMembers Component ---
 const ExternalMembers = () => {
   
-  // 2. Create a Ref for the signature canvas
   const sigPadRef = useRef({});
 
   // --- CONFIGURATION ---
@@ -207,20 +206,16 @@ const ExternalMembers = () => {
      setFormData(prev => ({ ...prev, ...updates }));
   };
 
-  // 3. New Function to handle Signature Drawing
   const handleSignatureEnd = () => {
     if (sigPadRef.current) {
-        // toDataURL() returns a base64 string, which works perfectly with your existing submit logic
         const signatureData = sigPadRef.current.toDataURL(); 
         setFormData(prev => ({ ...prev, signature: signatureData }));
-        // Clear error messages related to signature if any
         if(submitStatus.message && submitStatus.message.includes("signature")) {
             setSubmitStatus({ type: "", message: "" });
         }
     }
   };
 
-  // 4. Function to clear the signature
   const clearSignature = () => {
     if (sigPadRef.current) {
         sigPadRef.current.clear();
@@ -282,8 +277,7 @@ const ExternalMembers = () => {
         college_of_nursing_university: formData.collegeOfNursing.trim(),
         nursing_council_registration_number: formData.nursingCouncilReg.trim(),
         specialties_special_trainings: formData.specialties.trim(),
-        signature: formData.signature, // This is now the Data URL from Canvas
-        // timestamp: new Date().toISOString(),
+        signature: formData.signature,
         dob: formData.dob, 
         first_appointment_date: formData.firstAppointmentDate,
       };
@@ -294,7 +288,6 @@ const ExternalMembers = () => {
 
       setSubmitStatus({ type: "success", message: "Application submitted successfully!" });
       
-      // Clear canvas on success
       if (sigPadRef.current) sigPadRef.current.clear();
 
       setFormData({
@@ -318,18 +311,19 @@ const ExternalMembers = () => {
   const labelClass = "block text-sm font-semibold text-gray-700 mb-1.5";
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6 px-4 sm:px-6">
-      <div className="max-w-lg mx-auto bg-white shadow-xl rounded-2xl overflow-hidden">
+    <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6">
+      {/* Main Container - Widened to max-w-3xl for PC */}
+      <div className="max-w-3xl mx-auto bg-white shadow-xl rounded-2xl overflow-hidden border-t-8 border-[#2563EB]">
         
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#2563EB] to-[#800000] px-6 py-6 text-center">
-          <h1 className="text-2xl font-bold text-white leading-tight">
+        {/* Header - Google Form style Top Card */}
+        <div className="px-8 py-8 text-center border-b border-gray-100">
+          <h1 className="text-3xl font-bold text-gray-900 leading-tight">
             Government Nursing Officers' Association
           </h1>
-          <p className="text-blue-100 text-sm mt-2 font-medium">Membership Application Form</p>
+          <p className="text-gray-600 text-lg mt-3">Membership Application Form</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-8">
+        <form onSubmit={handleSubmit} className="p-8 space-y-8">
           
           {/* Status Messages */}
           {submitStatus.message && (
@@ -346,9 +340,14 @@ const ExternalMembers = () => {
           </div>
 
           {/* Personal Information */}
-          <section>
-            <h3 className="text-lg font-bold text-gray-900 border-l-4 border-[#2563EB] pl-3 mb-4">Personal Information</h3>
-            <div className="space-y-4">
+          <section className="bg-white">
+            <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+              <span className="bg-[#2563EB] w-1.5 h-6 mr-3 rounded-full"></span>
+              Personal Information
+            </h3>
+            
+            <div className="space-y-5">
+              {/* Full Width Fields */}
               <div>
                 <label className={labelClass}>Name in Full <span className="text-red-500">*</span></label>
                 <input type="text" name="nameInFull" value={formData.nameInFull} onChange={handleChange} className={inputClass} placeholder="Full Name" />
@@ -357,7 +356,9 @@ const ExternalMembers = () => {
                 <label className={labelClass}>Email Address <span className="text-red-500">*</span></label>
                 <input type="email" name="email" inputMode="email" value={formData.email} onChange={handleChange} className={inputClass} placeholder="example@email.com" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+
+              {/* Grid Layout for PC: 2 Columns */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <div>
                   <label className={labelClass}>NIC Number <span className="text-red-500">*</span></label>
                   <input type="text" name="nicNumber" value={formData.nicNumber} onChange={handleChange} className={inputClass} />
@@ -367,11 +368,19 @@ const ExternalMembers = () => {
                   <input type="date" name="dob" value={formData.dob} onChange={handleChange} className={inputClass} />
                  </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className={labelClass}>Mobile <span className="text-red-500">*</span></label>
                   <input type="tel" name="phonePersonal" value={formData.phonePersonal} onChange={handleChange} className={inputClass} />
                 </div>
+                <div>
+                  <label className={labelClass}>WhatsApp Number</label>
+                  <input type="tel" name="whatsappNumber" value={formData.whatsappNumber} onChange={handleChange} className={inputClass} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className={labelClass}>Gender <span className="text-red-500">*</span></label>
                   <select name="gender" value={formData.gender} onChange={handleChange} className={inputClass}>
@@ -380,7 +389,23 @@ const ExternalMembers = () => {
                     <option value="Female">Female</option>
                   </select>
                 </div>
+                <div>
+                  <label className={labelClass}>Marital Status</label>
+                  <select name="maritalStatus" value={formData.maritalStatus} onChange={handleChange} className={inputClass}>
+                    <option value="">Select</option>
+                    <option value="Single">Single</option>
+                    <option value="Married">Married</option>
+                    <option value="Divorced">Divorced</option>
+                    <option value="Widowed">Widowed</option>
+                  </select>
+                </div>
               </div>
+              
+              <div>
+                <label className={labelClass}>Personal Address</label>
+                <textarea name="personalAddress" value={formData.personalAddress} onChange={handleChange} className={inputClass} rows={2} />
+              </div>
+
               <div>
                 <label className={labelClass}>Official Address</label>
                 <textarea name="officialAddress" value={formData.officialAddress} onChange={handleChange} className={inputClass} rows={2} />
@@ -388,12 +413,16 @@ const ExternalMembers = () => {
             </div>
           </section>
 
-          <hr className="border-gray-100" />
+          <hr className="border-gray-200" />
 
           {/* Section: Designation & Workplace */}
           <section>
-            <h3 className="text-lg font-bold text-gray-900 border-l-4 border-[#2563EB] pl-3 mb-4">Work Place</h3>
-            <div className="space-y-4">
+             <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+              <span className="bg-[#2563EB] w-1.5 h-6 mr-3 rounded-full"></span>
+              Work Place
+            </h3>
+            
+            <div className="space-y-5">
               <div>
                 <label className={labelClass}>Category <span className="text-red-500">*</span></label>
                 <select name="category" value={formData.category} onChange={handleChange} className={inputClass}>
@@ -403,8 +432,8 @@ const ExternalMembers = () => {
               </div>
 
               {formData.category && !isDirectLocation(formData.category) && (
-                <div className="fade-in space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="fade-in space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className={labelClass}>Province <span className="text-red-500">*</span></label>
                       <select name="province" value={formData.province} onChange={handleChange} className={inputClass}>
@@ -422,6 +451,13 @@ const ExternalMembers = () => {
                       </div>
                     )}
                   </div>
+
+                  {/* RDHS Field (Optional based on previous code) */}
+                  <div className="fade-in">
+                    <label className={labelClass}>RDHS Division</label>
+                    <input type="text" name="rdhs" value={formData.rdhs} onChange={handleChange} className={inputClass} placeholder="Regional Director of Health Services" />
+                  </div>
+
                 </div>
               )}
 
@@ -461,13 +497,17 @@ const ExternalMembers = () => {
             </div>
           </section>
 
-          <hr className="border-gray-100" />
+          <hr className="border-gray-200" />
 
           {/* Section: Employment Details */}
           <section>
-            <h3 className="text-lg font-bold text-gray-900 border-l-4 border-[#2563EB] pl-3 mb-4">Employment Details</h3>
-            <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+            <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+              <span className="bg-[#2563EB] w-1.5 h-6 mr-3 rounded-full"></span>
+              Employment Details
+            </h3>
+
+            <div className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label className={labelClass}>First Appointment <span className="text-red-500">*</span></label>
                         <input type="date" name="firstAppointmentDate" value={formData.firstAppointmentDate} onChange={handleChange} className={inputClass} />
@@ -477,13 +517,15 @@ const ExternalMembers = () => {
                         <input type="text" name="employmentNumber" value={formData.employmentNumber} onChange={handleChange} className={inputClass} />
                     </div>
                 </div>
-                <div>
-                    <label className={labelClass}>Nursing Council Reg No <span className="text-red-500">*</span></label>
-                    <input type="text" name="nursingCouncilReg" value={formData.nursingCouncilReg} onChange={handleChange} className={inputClass} />
-                </div>
-                <div>
-                    <label className={labelClass}>College / University <span className="text-red-500">*</span></label>
-                    <input type="text" name="collegeOfNursing" value={formData.collegeOfNursing} onChange={handleChange} className={inputClass} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className={labelClass}>Nursing Council Reg No <span className="text-red-500">*</span></label>
+                        <input type="text" name="nursingCouncilReg" value={formData.nursingCouncilReg} onChange={handleChange} className={inputClass} />
+                    </div>
+                    <div>
+                        <label className={labelClass}>College / University <span className="text-red-500">*</span></label>
+                        <input type="text" name="collegeOfNursing" value={formData.collegeOfNursing} onChange={handleChange} className={inputClass} />
+                    </div>
                 </div>
                 <div>
                     <label className={labelClass}>Educational Qualifications</label>
@@ -496,51 +538,51 @@ const ExternalMembers = () => {
             </div>
           </section>
 
-          <hr className="border-gray-100" />
+          <hr className="border-gray-200" />
 
-          {/* Section: Signature (REPLACED) */}
+          {/* Section: Signature */}
           <section>
-            <div className="bg-blue-50 p-4 rounded-lg mb-4">
+            <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
               <label className={labelClass}>Draw Signature <span className="text-red-500">*</span></label>
               
               {/* Signature Canvas Container */}
-              <div className="mt-2 border-2 border-[#2563EB] border-dashed rounded-lg bg-white overflow-hidden relative group">
+              <div className="mt-3 border-2 border-[#2563EB] border-dashed rounded-lg bg-white overflow-hidden relative group shadow-inner">
                 <SignatureCanvas 
                     ref={sigPadRef}
                     penColor="black"
                     velocityFilterWeight={0.7}
                     canvasProps={{
-                        className: "w-full h-40 cursor-crosshair",
+                        className: "w-full h-48 cursor-crosshair",
                     }}
                     onEnd={handleSignatureEnd}
                 />
                 
-                {/* Overlay Instruction (disappears when drawn) */}
+                {/* Overlay Instruction */}
                 {!formData.signature && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40">
                          <div className="flex flex-col items-center">
-                            <PenTool className="w-6 h-6 text-gray-400 mb-1" />
-                            <p className="text-xs text-gray-500">Sign Here</p>
+                            <PenTool className="w-8 h-8 text-gray-500 mb-2" />
+                            <p className="text-sm text-gray-600 font-medium">Sign Here</p>
                         </div>
                     </div>
                 )}
               </div>
 
               {/* Controls */}
-              <div className="flex justify-between items-center mt-2">
+              <div className="flex justify-between items-center mt-3">
                  <button
                     type="button"
                     onClick={clearSignature}
-                    className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700 transition-colors font-medium"
+                    className="flex items-center gap-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors font-medium"
                  >
                     <Eraser className="w-4 h-4" />
                     Clear Signature
                  </button>
 
                  {formData.signature && (
-                    <div className="flex items-center gap-2 bg-green-100 px-2 py-1 rounded border border-green-200">
+                    <div className="flex items-center gap-2 bg-green-100 px-3 py-1.5 rounded-lg border border-green-200">
                         <Check className="w-4 h-4 text-green-700" />
-                        <span className="text-xs text-green-700 font-medium">Captured</span>
+                        <span className="text-sm text-green-700 font-medium">Captured</span>
                     </div>
                  )}
               </div>
@@ -548,11 +590,11 @@ const ExternalMembers = () => {
           </section>
 
           {/* Submit Button */}
-          <div className="pt-2 pb-8">
+          <div className="pt-4 pb-8 flex justify-end">
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-4 px-6 bg-gradient-to-r from-[#2563EB] to-[#800000] text-white text-lg font-bold rounded-xl shadow-lg flex justify-center items-center gap-2"
+              className="w-full sm:w-auto py-3 px-8 bg-[#2563EB] hover:bg-[#1d4ed8] text-white text-lg font-bold rounded-lg shadow-md hover:shadow-lg transition-all flex justify-center items-center gap-2"
             >
               {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin" /> : "Submit Application"}
             </button>

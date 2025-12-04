@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { supabase } from "./supabaseClient";
-import Modal from "./components/Modal"; // 1. Import your reusable Modal
+import Modal from "./components/Modal"; 
 
 import Auth from "./components/Auth";
 import Layout from "./components/Layout";
@@ -16,23 +16,14 @@ import Form from "./pages/ExternalMembers";
 
 export default function App() {
   const { loading, isAuthenticated, user } = useAuth();
-  
-  // 2. State to control the Lock Modal
   const [showLockModal, setShowLockModal] = useState(false);
 
-  // --- LOCK ENFORCEMENT LISTENER ---
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      
       if (session?.user) {
-        // Check if the administrator has set the 'is_locked' flag
         const isLocked = session.user.user_metadata?.is_locked;
-
         if (isLocked) {
-          // A. Force Sign Out immediately
           await supabase.auth.signOut();
-          
-          // B. Show the Modal (Do NOT redirect yet, let them read the message)
           setShowLockModal(true); 
         }
       }
@@ -43,7 +34,6 @@ export default function App() {
     };
   }, []);
 
-  // 3. Handle closing the modal -> Redirect to Auth
   const handleLockAcknowledgment = () => {
     setShowLockModal(false);
     window.location.href = "/auth"; 
@@ -62,10 +52,9 @@ export default function App() {
 
   return (
     <Router>
-      {/* 4. Render the Modal Overlay */}
       <Modal
         isOpen={showLockModal}
-        onClose={handleLockAcknowledgment} // Clicking 'X' also redirects
+        onClose={handleLockAcknowledgment} 
         title="Account Locked"
         actions={
           <button
@@ -77,24 +66,16 @@ export default function App() {
         }
       >
         <div className="flex flex-col gap-2">
-          <p className="font-semibold text-red-600">
-            Access Denied
-          </p>
-          <p>
-            Your account has been locked by an administrator. You have been signed out for security reasons.
-          </p>
-          <p className="text-sm text-gray-500 mt-2">
-            Please contact the system administrator if you believe this is an error.
-          </p>
+          <p className="font-semibold text-red-600">Access Denied</p>
+          <p>Your account has been locked by an administrator. You have been signed out for security reasons.</p>
+          <p className="text-sm text-gray-500 mt-2">Please contact the system administrator if you believe this is an error.</p>
         </div>
       </Modal>
 
       <Routes>
-        {/* Public route */}
         <Route path="/" element={<Auth />} />
         <Route path="/form" element={<Form />} />
         
-        {/* Auth route */}
         <Route 
           path="/auth" 
           element={!isAuthenticated ? <Auth /> : <Navigate to="/dashboard" />} 
@@ -106,9 +87,8 @@ export default function App() {
           <Route path="/applied" element={<AppliedMembers />} />
           <Route path="/add" element={<AddAppliedMembers />} />
           <Route path="/ex" element={<ExMember/>} />
-          <Route path="/profile" element={<ProfilePage/>} />
           
-          {/* Admin-only route */}
+          {/* Admin-only: User Management */}
           <Route 
             path="/manage" 
             element={
@@ -117,9 +97,18 @@ export default function App() {
                 : <Navigate to="/dashboard" replace />
             } 
           />
+
+          {/* Admin-only: Profile (MOVED HERE & FIXED SYNTAX) */}
+          <Route
+            path="/profile"
+            element={
+              user?.user_metadata?.role === 'admin'
+                ? <ProfilePage />
+                : <Navigate to="/dashboard" replace />
+            }
+          />
         </Route>
 
-        {/* Catch-all */}
         <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/auth"} />} />
       </Routes>
     </Router>
