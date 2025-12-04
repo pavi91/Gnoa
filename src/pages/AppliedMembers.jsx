@@ -1,221 +1,423 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMemberResponses } from '../hooks/useMemberResponses';
+import { supabase } from '../supabaseClient'; 
 import { 
   Loader2, 
   User, 
-  Search, 
-  Filter,
-  Calendar, 
-  Phone,
-  ShieldCheck, 
-  Download,
+  Filter, 
+  Download, 
   Trash2, 
   X, 
   AlertTriangle, 
-  ChevronLeft,
-  ChevronRight,
-  Info 
+  ChevronLeft, 
+  ChevronRight, 
+  Info, 
+  Briefcase, 
+  Phone, 
+  ShieldCheck, 
+  RefreshCw,
+  FileSpreadsheet
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
 import { pdf } from '@react-pdf/renderer';
 import { MembershipFormDoc } from './MembershipForm';
 
 const ITEMS_PER_PAGE = 10;
 
+// --- CONFIGURATION ---
+const DIRECT_LOCATION_CATEGORIES = [
+  "Line Ministry", 
+  "Nursing Training School"
+];
+
+const TEXT_INPUT_DESIGNATION_CATEGORIES = [
+  "Line Ministry", 
+  "Nursing Training School", 
+  "Public Health", 
+  "RDHS", 
+  "MOH Divisions"
+];
+
+const CATEGORY_DESIGNATIONS = {
+    "Hospital Services": ["Chief Nursing Officer", "Deputy Chief Nursing Officer", "Senior Nursing Officer", "Nursing Officer", "Staff Nurse", "Ward Manager", "Clinical Nurse Specialist"],
+    "Education": ["Nursing Tutor", "Senior Nursing Tutor", "Principal - School of Nursing", "Vice Principal - School of Nursing", "Lecturer in Nursing", "Clinical Instructor"],
+};
+
 const MemberList = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  // --- STATE: Filters ---
+  const [filters, setFilters] = useState({
+    gender: '',
+    nicNumber: '', // Changed from maritalStatus to nicNumber
+    category: '',
+    province: '',
+    district: '',
+    designation: '',
+    institution: ''
+  });
+  
   const [filterStatus, setFilterStatus] = useState('all');
+
+  // --- STATE: Data ---
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  
+  // --- STATE: Dropdown Options ---
+  const [categoriesOptions, setCategoriesOptions] = useState([]);
+  const [provincesOptions, setProvincesOptions] = useState([]);
+  const [districtsOptions, setDistrictsOptions] = useState([]);
+  const [institutionsOptions, setInstitutionsOptions] = useState([]);
+
+  // --- STANDARD STATES ---
   const [downloadingId, setDownloadingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-  
-  // Delete Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState(null);
-
-  // Details Modal State
   const [detailsMember, setDetailsMember] = useState(null);
-
   const [currentPage, setCurrentPage] = useState(1);
   
   const navigate = useNavigate();
-  
-  const {
-    members,
-    loading,
-    loadingMore,
-    hasMore,
-    error,
-    loadMore,
-    refresh,
-    searchMembers,
-    getMembersByStatus
-  } = useMemberResponses();
 
-  // Helper
-  const getValidMaritalStatus = (status) => {
-    if (status === 'Yes' || status === 'Married') return 'Married';
-    if (status === 'No' || status === 'Single') return 'Single';
-    if (['Single', 'Married', 'Divorced', 'Widowed'].includes(status)) {
-      return status;
-    }
-    return "";
+  // --- HELPER: Map DB Columns to UI Format ---
+  const transformData = (data) => {
+    return data.map(item => ({
+      id: item.id,
+      timestamp: item.created_at,
+      fullName: item.name_in_full,
+      email: item.email,
+      nicNumber: item.nic_number,
+      dob: item.dob,
+      phoneNumber: item.phone_number_personal,
+      whatsappNumber: item.whatsapp_number,
+      gender: item.gender,
+      maritalStatus: item.marital_status,
+      officialAddress: item.official_address,
+      personalAddress: item.personal_address,
+      category: item.category,
+      designation: item.designation,
+      institution: item.type_of_organization_hospital,
+      province: item.province_work_place,
+      district: item.district_work_place,
+      rdhs: item.rdhs,
+      firstAppointmentDate: item.first_appointment_date,
+      employmentNumber: item.employment_number_salary_number,
+      nursingCouncilNumber: item.nursing_council_registration_number,
+      collegeUniversity: item.college_of_nursing_university,
+      educationalQualifications: item.educational_qualifications,
+      specialties: item.specialties_special_trainings,
+      signatureUrl: item.signature,
+      status: item.status || 'Pending',
+    }));
   };
 
-  // Handle PDF Download
+  const isDirectLocation = (category) => DIRECT_LOCATION_CATEGORIES.includes(category);
+  const isTextInputDesignation = (category) => TEXT_INPUT_DESIGNATION_CATEGORIES.includes(category);
+
+  // --- 1. FETCH FILTER OPTIONS ---
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      const { data: catData } = await supabase.from("categories").select("id, name");
+      if (catData) setCategoriesOptions(catData);
+
+      const { data: provData } = await supabase.from("provinces").select("id, name");
+      if (provData) setProvincesOptions(provData);
+    };
+    fetchInitialData();
+  }, []);
+
+  useEffect(() => {
+    const fetchDistricts = async () => {
+      if (isDirectLocation(filters.category)) {
+        setDistrictsOptions([]);
+        return;
+      }
+      if (filters.province) {
+        const provinceId = provincesOptions.find(p => p.name === filters.province)?.id;
+        if (provinceId) {
+          const { data } = await supabase.from("districts").select("id, name").eq("province_id", provinceId);
+          if (data) setDistrictsOptions(data);
+        }
+      } else {
+        setDistrictsOptions([]);
+      }
+    };
+    fetchDistricts();
+  }, [filters.province, provincesOptions, filters.category]);
+
+  useEffect(() => {
+    const fetchInstitutions = async () => {
+      if (!filters.category) {
+        setInstitutionsOptions([]);
+        return;
+      }
+      const categoryId = categoriesOptions.find(c => c.name === filters.category)?.id;
+      if (!categoryId) return;
+
+      if (isDirectLocation(filters.category)) {
+        const { data } = await supabase.from("institutions").select("name").eq("category_id", categoryId);
+        if (data) setInstitutionsOptions(data.map(i => i.name));
+      } 
+      else if (filters.province && filters.district) {
+        const provinceId = provincesOptions.find(p => p.name === filters.province)?.id;
+        const districtId = districtsOptions.find(d => d.name === filters.district)?.id;
+        
+        if (provinceId && districtId) {
+          const { data } = await supabase.from("institutions").select("name")
+            .eq("category_id", categoryId).eq("province_id", provinceId).eq("district_id", districtId);
+          if (data) setInstitutionsOptions(data.map(i => i.name));
+        }
+      } else {
+        setInstitutionsOptions([]);
+      }
+    };
+    fetchInstitutions();
+  }, [filters.category, filters.province, filters.district, categoriesOptions, provincesOptions, districtsOptions]);
+
+
+  // --- 2. FETCH MEMBERS ---
+  const fetchFilteredMembers = async () => {
+    setLoading(true);
+    try {
+      let query = supabase
+        .from('form_responses')
+        .select('*') 
+        .order('created_at', { ascending: false });
+
+      if (filterStatus === 'pending') query = query.eq('status', 'Pending');
+      else if (filterStatus === 'approved') query = query.eq('status', 'Verified'); 
+      else if (filterStatus === 'rejected') query = query.eq('status', 'Rejected');
+
+      if (filters.category) query = query.eq('category', filters.category);
+      
+      if (filters.category && !isDirectLocation(filters.category)) {
+          if (filters.province) query = query.eq('province_work_place', filters.province);
+          if (filters.district) query = query.eq('district_work_place', filters.district);
+      }
+
+      if (filters.institution) query = query.eq('type_of_organization_hospital', filters.institution);
+      
+      if (filters.designation) {
+        if (isTextInputDesignation(filters.category)) {
+           query = query.ilike('designation', `%${filters.designation}%`);
+        } else {
+           query = query.eq('designation', filters.designation);
+        }
+      }
+
+      if (filters.gender) query = query.eq('gender', filters.gender);
+      
+      // NIC Search Logic (Partial Match)
+      if (filters.nicNumber) {
+        query = query.ilike('nic_number', `%${filters.nicNumber}%`);
+      }
+
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      setMembers(transformData(data || []));
+
+    } catch (err) {
+      console.error("Error fetching members:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFilteredMembers();
+  }, [filters, filterStatus]); 
+
+
+  // --- CSV EXPORT FUNCTION ---
+  const handleExportCSV = () => {
+    if (members.length === 0) return;
+
+    const headers = [
+      "ID", "Created At", "Full Name", "Email", "NIC Number", "Date of Birth",
+      "Phone Number", "WhatsApp Number", "Gender", "Marital Status",
+      "Official Address", "Personal Address",
+      "Category", "Designation", "Institution", "Province", "District", "RDHS",
+      "First Appointment Date", "Employment Number", "Nursing Council Reg No",
+      "College/University", "Educational Qualifications", "Specialties", "Status"
+    ];
+
+    const escapeCSV = (value) => {
+      if (value === null || value === undefined) return "";
+      const stringValue = String(value);
+      if (stringValue.includes(",") || stringValue.includes("\n") || stringValue.includes('"')) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      }
+      return stringValue;
+    };
+
+    const rows = members.map(m => [
+      m.id,
+      m.timestamp,
+      m.fullName,
+      m.email,
+      m.nicNumber,
+      m.dob,
+      m.phoneNumber,
+      m.whatsappNumber,
+      m.gender,
+      m.maritalStatus,
+      m.officialAddress,
+      m.personalAddress,
+      m.category,
+      m.designation,
+      m.institution,
+      m.province,
+      m.district,
+      m.rdhs,
+      m.firstAppointmentDate,
+      m.employmentNumber,
+      m.nursingCouncilNumber,
+      m.collegeUniversity,
+      m.educationalQualifications,
+      m.specialties,
+      m.status
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(escapeCSV).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    
+    const dateStr = new Date().toISOString().split('T')[0];
+    const categoryStr = filters.category ? `_${filters.category.replace(/\s+/g, '')}` : '';
+    link.setAttribute("download", `Member_Export${categoryStr}_${dateStr}.csv`);
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // --- HANDLERS ---
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => {
+      const newFilters = { ...prev, [key]: value };
+      if (key === "category") {
+        newFilters.designation = "";
+        newFilters.institution = ""; 
+        newFilters.province = "";
+        newFilters.district = "";
+      }
+      if (key === "province") {
+        newFilters.district = "";
+        newFilters.institution = "";
+      }
+      if (key === "district") {
+        newFilters.institution = "";
+      }
+      return newFilters;
+    });
+    setCurrentPage(1);
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      gender: '', nicNumber: '', category: '', province: '',
+      district: '', designation: '', institution: ''
+    });
+    setFilterStatus('all');
+    setCurrentPage(1);
+  };
+
+  const totalPages = Math.ceil(members.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const membersOnPage = members.slice(startIndex, endIndex);
+
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+  };
+
   const handleDownloadPDF = async (member) => {
     setDownloadingId(member.id);
     try {
-      // FIX: Check for 'dob' (database column) or 'dateOfBirth' (frontend alias)
-      const dobValue = member.dob || member.dateOfBirth;
-
       const pdfData = {
         fullName: member.fullName || 'N/A',
         email: member.email || 'N/A',
         designation: member.designation || 'N/A',
         officialAddress: member.officialAddress || 'N/A',
         personalAddress: member.personalAddress || 'N/A',
-        dob: dobValue ? new Date(dobValue) : null, // Updated here
+        dob: member.dob ? new Date(member.dob) : null,
         firstAppointmentDate: member.firstAppointmentDate ? new Date(member.firstAppointmentDate) : null,
         mobile: member.phoneNumber || 'N/A',
         gender: member.gender || 'N/A',
         maritalStatus: member.maritalStatus || 'N/A',
         employmentNumber: member.employmentNumber || 'N/A',
         university: member.collegeUniversity || 'N/A',
-        signature: member.signature || null,
+        signature: member.signatureUrl || null,
       };
 
       const blob = await pdf(<MembershipFormDoc data={pdfData} />).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      const safeName = (member.fullName || 'member').replace(/[^a-z0-9]/gi, '_');
-      link.download = `Membership_Application_${safeName}.pdf`;
+      link.download = `Membership_${(member.fullName || 'member').replace(/[^a-z0-9]/gi, '_')}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-
     } catch (error) {
-      console.error("Error generating PDF:", error);
+      console.error("PDF Error:", error);
     } finally {
       setDownloadingId(null);
     }
   };
 
-
-  // Handle Verify
   const handleVerify = (member) => {
-    // FIX: Check for 'dob' or 'dateOfBirth'
-    const dobValue = member.dob || member.dateOfBirth;
-
-    const memberData = {
-      fullName: member.fullName || '',
-      email: member.email || '',
-      nicNumber: member.nicNumber || '',
-      dob: dobValue ? new Date(dobValue).toISOString().split('T')[0] : '', // Updated here
-      mobile: member.phoneNumber || '',
-      whatsappNumber: member.whatsappNumber || '', 
-      gender: member.gender || '',
-      maritalStatus: getValidMaritalStatus(member.maritalStatus),
-      officialAddress: member.officialAddress || '',
-      personalAddress: member.personalAddress || '',
-      designation: member.designation || '',
-      province: member.province || '',
-      district: member.district || '',
-      rdhs: member.rdhs || '',
-      institution: member.organizationType || '',
-      firstAppointmentDate: member.firstAppointmentDate 
-        ? new Date(member.firstAppointmentDate).toISOString().split('T')[0] 
-        : '',
-      employmentNumber: member.employmentNumber || '',
-      university: member.collegeUniversity || '',
-      nursingCouncilReg: member.nursingCouncilNumber || '',
-      educationalQuals: member.educationalQualifications || '',
-      specialties: member.specialties ? member.specialties.join(', ') : '',
-      signature: member.signatureUrl || null,
-    };
-    
-    navigate('/add', { state: { member: memberData } });
+      navigate('/add', { state: { member: member } });
   };
-
-  // Delete Modal Handlers
+  
   const openDeleteModal = (member) => {
     setMemberToDelete(member);
     setIsModalOpen(true);
   };
-
   const closeDeleteModal = () => {
     if (deletingId) return; 
     setMemberToDelete(null);
     setIsModalOpen(false);
   };
-
   const handleConfirmDelete = async () => {
     if (!memberToDelete) return;
-
     setDeletingId(memberToDelete.id);
     try {
-      console.log(`Simulating delete for member ID: ${memberToDelete.id}`);
-      await new Promise(resolve => setTimeout(resolve, 750)); 
-      
-      refresh(); 
+      const { error } = await supabase.from('form_responses').delete().eq('id', memberToDelete.id);
+      if (error) throw error;
+      fetchFilteredMembers(); 
       closeDeleteModal(); 
-
     } catch (error) {
-      console.error("Error deleting member:", error);
+      console.error("Error deleting:", error);
     } finally {
       setDeletingId(null); 
     }
   };
 
-  // filtering logic
-  const filteredMembers = useMemo(() => {
-    let result = members;
-    
-    if (searchTerm) {
-      result = searchMembers(searchTerm);
-    }
-    
-    if (filterStatus !== 'all') {
-      result = getMembersByStatus(filterStatus);
-    }
-    
-    return result;
-  }, [members, searchTerm, filterStatus, searchMembers, getMembersByStatus]);
+  // --- UI COMPONENTS ---
+  const FilterSelect = ({ label, value, onChange, options, disabled = false, placeholder = "All" }) => (
+    <div className="flex flex-col">
+        <label className="text-xs font-semibold text-gray-500 mb-1 ml-1">{label}</label>
+        <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#800000] focus:border-transparent disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+        >
+        <option value="">{placeholder}</option>
+        {options.map((opt, idx) => {
+            const val = typeof opt === 'object' ? opt.name : opt;
+            const display = typeof opt === 'object' ? opt.name : opt;
+            return <option key={idx} value={val}>{display}</option>
+        })}
+        </select>
+    </div>
+  );
 
-  // pagination reset effect
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filterStatus]);
-
-
-  // Pagination logic
-  const totalPages = Math.ceil(filteredMembers.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-  
-  const membersOnPage = filteredMembers.slice(startIndex, endIndex);
-
-  const handlePageChange = (page) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-    }
-  };
-  
-  // --- Loading State ---
-  if (loading && members.length === 0) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-[#800000] mx-auto mb-4" />
-          <p className="text-gray-600">Loading members...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Helper component for Data Rows in Modal
   const DetailRow = ({ label, value }) => (
     <div className="py-2 border-b border-gray-100 last:border-0">
       <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</dt>
@@ -223,255 +425,228 @@ const MemberList = () => {
     </div>
   );
 
-  // --- Main Component JSX ---
   return (
     <div className="space-y-6">
       
-      {/* --- HEADER --- */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-[#333]">Applications</h2>
           <p className="text-gray-600 mt-1">
-            <span className="font-semibold text-[#800000]">{filteredMembers.length}</span> members matching
-            {filterStatus !== 'all' && ` • ${filterStatus}`}
-            {searchTerm && ` • "${searchTerm}"`}
-            <span className="ml-2 text-sm text-gray-400"> (Page {totalPages > 0 ? currentPage : 0} of {totalPages})</span>
+            <span className="font-semibold text-[#800000]">{members.length}</span> results found
+            <span className="ml-2 text-sm text-gray-400">(Page {totalPages > 0 ? currentPage : 0}/{totalPages})</span>
           </p>
         </div>
-        
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={refresh}
-            disabled={loading}
-            className="px-4 py-2 bg-[#800000] text-white rounded-lg hover:bg-[#600000] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-          >
-            <span>Refresh</span>
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          </button>
+        <div className="flex items-center gap-2">
+            
+            {/* Export CSV Button */}
+            <button 
+                onClick={handleExportCSV} 
+                disabled={loading || members.length === 0}
+                className="px-4 py-2 border border-green-600 text-green-700 rounded-lg hover:bg-green-50 flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Export current list to CSV"
+            >
+                <FileSpreadsheet className="w-4 h-4" /> 
+                <span className="hidden sm:inline">Export CSV</span>
+            </button>
+
+            <button onClick={clearFilters} className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-sm transition-colors">
+                <RefreshCw className="w-4 h-4" /> 
+                <span className="hidden sm:inline">Reset</span>
+            </button>
+
+            <button onClick={fetchFilteredMembers} disabled={loading} className="px-4 py-2 bg-[#800000] text-white rounded-lg hover:bg-[#600000] disabled:opacity-50 flex items-center gap-2 text-sm transition-colors">
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Refresh"}
+            </button>
         </div>
       </div>
 
-      {/* --- FILTERS --- */}
-      <div className="flex flex-col sm:flex-row gap-4 bg-white p-4 rounded-lg shadow-sm border">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <input
-            type="text"
-            placeholder="Search members by name, email or NIC"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:border-transparent"
-          />
+      {/* FILTER SECTION */}
+      <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 space-y-4">
+        <div className="flex items-center gap-2 text-[#800000] font-semibold border-b border-gray-100 pb-2">
+            <Filter className="w-4 h-4" />
+            <h3>Filter Members</h3>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Filter className="text-gray-400 h-4 w-4" />
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:border-transparent"
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-3 space-y-4 border-b lg:border-b-0 lg:border-r border-gray-100 pb-4 lg:pb-0 lg:pr-4">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                    <User className="w-3 h-3" /> Personal
+                </h4>
+                <FilterSelect label="Status" value={filterStatus} onChange={setFilterStatus} options={["pending", "approved", "rejected"]} />
+                <div className="grid grid-cols-2 gap-2">
+                    <FilterSelect label="Gender" value={filters.gender} onChange={(v) => handleFilterChange('gender', v)} options={["Male", "Female"]} />
+                    {/* Replaced Marital Status with NIC Search */}
+                    <div className="flex flex-col">
+                        <label className="text-xs font-semibold text-gray-500 mb-1 ml-1">Search NIC</label>
+                        <input
+                            type="text"
+                            value={filters.nicNumber}
+                            onChange={(e) => handleFilterChange('nicNumber', e.target.value)}
+                            placeholder="Type NIC..."
+                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#800000] focus:border-transparent placeholder-gray-400"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <div className="lg:col-span-9 space-y-4">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                    <Briefcase className="w-3 h-3" /> Work Place
+                </h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="lg:col-span-1">
+                        <FilterSelect 
+                            label="Category *"
+                            value={filters.category} 
+                            onChange={(val) => handleFilterChange('category', val)} 
+                            options={categoriesOptions} 
+                            placeholder="Select First"
+                        />
+                    </div>
+
+                    {(!filters.category || !isDirectLocation(filters.category)) && (
+                        <>
+                            <FilterSelect 
+                                label="Province"
+                                value={filters.province} 
+                                onChange={(val) => handleFilterChange('province', val)} 
+                                options={provincesOptions} 
+                                disabled={!filters.category} 
+                                placeholder={!filters.category ? "Select Category" : "Select Province"}
+                            />
+                            <FilterSelect 
+                                label="District"
+                                value={filters.district} 
+                                onChange={(val) => handleFilterChange('district', val)} 
+                                options={districtsOptions}
+                                disabled={!filters.province} 
+                                placeholder={!filters.province ? "Select Province" : "Select District"}
+                            />
+                        </>
+                    )}
+
+                    {filters.category && isDirectLocation(filters.category) && (
+                        <div className="col-span-2 flex items-center justify-center bg-gray-50 rounded-lg border border-dashed border-gray-200 text-xs text-gray-400 italic">
+                            Direct Location selected.
+                        </div>
+                    )}
+
+                    <FilterSelect 
+                        label="Institution"
+                        value={filters.institution} 
+                        onChange={(val) => handleFilterChange('institution', val)} 
+                        options={institutionsOptions} 
+                        disabled={!filters.category || (!isDirectLocation(filters.category) && !filters.district)}
+                        placeholder="Search Institution"
+                    />
+                    
+                    <div className="lg:col-span-4 md:col-span-2">
+                        {filters.category && isTextInputDesignation(filters.category) ? (
+                            <div className="flex flex-col">
+                                <label className="text-xs font-semibold text-gray-500 mb-1 ml-1">Designation Search</label>
+                                <input
+                                    type="text"
+                                    value={filters.designation}
+                                    onChange={(e) => handleFilterChange('designation', e.target.value)}
+                                    placeholder="Type to search..."
+                                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#800000] focus:border-transparent"
+                                />
+                            </div>
+                        ) : (
+                            <FilterSelect 
+                                label="Designation"
+                                value={filters.designation} 
+                                onChange={(val) => handleFilterChange('designation', val)} 
+                                options={filters.category ? (CATEGORY_DESIGNATIONS[filters.category] || []) : []} 
+                                disabled={!filters.category}
+                                placeholder={!filters.category ? "Select Category First" : "Select Designation"}
+                            />
+                        )}
+                    </div>
+                </div>
+            </div>
         </div>
       </div>
 
-      {/* --- ERROR & EMPTY STATES --- */}
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-800">Error: {error}</p>
+      {/* --- TABLE & LIST VIEW --- */}
+      {loading ? (
+        <div className="flex items-center justify-center min-h-64 bg-white rounded-lg shadow-sm border border-gray-200">
+           <div className="text-center">
+             <Loader2 className="w-8 h-8 animate-spin text-[#800000] mx-auto mb-2" />
+             <p className="text-sm text-gray-500">Fetching data from database...</p>
+           </div>
         </div>
-      )}
-
-      {!loading && filteredMembers.length === 0 && (
-        <div className="text-center py-12">
+      ) : members.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">
           <User className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">
-            {searchTerm || filterStatus !== 'all' ? 'No matching members' : 'No members found'}
-          </h3>
-          <p className="mt-1 text-sm text-gray-500">
-             Try adjusting your filters or search term.
-          </p>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No matching members found</h3>
+          <p className="mt-1 text-sm text-gray-500">Try adjusting the filters above.</p>
         </div>
-      )}
-
-      {/* --- MEMBERS TABLE --- */}
-      {membersOnPage.length > 0 && (
-        <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+      ) : (
+        <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg border border-gray-200">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Full Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Designation
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Phone Number
-                  </th>
-                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Gender
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Added Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="relative px-6 py-3">
-                    <span className="sr-only">Actions</span>
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name & Contact</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Designation</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {membersOnPage.map((member) => ( 
                   <tr key={member.id} className="hover:bg-gray-50">
-                    {/* Full Name */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10">
-                          {member.profile?.avatarUrl ? (
-                            <img
-                              className="h-10 w-10 rounded-full object-cover"
-                              src={member.profile.avatarUrl}
-                              alt={member.fullName}
-                            />
-                          ) : (
-                            <div className="h-10 w-10 rounded-full bg-gradient-to-r from-[#2563EB] to-[#800000] flex items-center justify-center">
-                              <User className="h-5 w-5 text-white" />
-                            </div>
-                          )}
+                        <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gradient-to-r from-[#2563EB] to-[#800000] flex items-center justify-center text-white">
+                           <span className="font-bold text-sm">
+                             {member.fullName ? member.fullName.charAt(0).toUpperCase() : "U"}
+                           </span>
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {member.fullName}
-                          </div>
+                          <div className="text-sm font-medium text-gray-900">{member.fullName}</div>
+                          <div className="text-xs text-gray-500 flex items-center gap-1"><Phone className="w-3 h-3" /> {member.phoneNumber}</div>
                         </div>
                       </div>
                     </td>
-
-                    {/* Designation */}
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {member.designation || 'N/A'}
-                      </div>
+                      <div className="text-sm font-medium text-gray-900">{member.designation || 'N/A'}</div>
+                      <div className="text-xs text-gray-500">{member.category}</div>
                     </td>
-                    
-                    {/* Phone Number */}
                     <td className="px-6 py-4 whitespace-nowrap">
-                       <div className="flex items-center text-sm text-gray-900">
-                          <Phone className="mr-1 h-3 w-3 text-gray-500" />
-                          {member.phoneNumber || 'N/A'}
+                       <div className="flex flex-col text-sm text-gray-900">
+                          <span className="font-medium truncate max-w-[150px]" title={member.institution}>
+                              {member.institution || 'N/A'}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                             {member.district || (isDirectLocation(member.category) ? "Direct Ministry" : "-")}
+                          </span>
                         </div>
                     </td>
-                    
-                    {/* Gender */}
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {member.gender || 'N/A'}
-                    </td>
-
-                    {/* Email */}
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {member.email || 'N/A'}
-                    </td>
-                    
-                    {/* Added Date */}
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex items-center">
-                        <Calendar className="mr-2 h-4 w-4 text-gray-400" />
-                        <span>
-                          {formatDistanceToNow(new Date(member.timestamp), { addSuffix: true })}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Status */}
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          member.status === 'Verified'
-                            ? 'bg-green-100 text-green-800'
-                            : member.status === 'Pending'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          member.status === 'Verified' ? 'bg-green-100 text-green-800' : 
+                          member.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+                        }`}>
                         {member.status}
                       </span>
                     </td>
-
-                    {/* Actions */}
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end space-x-2">
-                        
-                        {/* Info Button */}
-                        <button
-                          onClick={() => setDetailsMember(member)}
-                          className="inline-flex items-center justify-center p-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-blue-700 bg-white hover:bg-blue-50 focus:outline-none transition-colors"
-                          title="View Details"
-                        >
-                          <Info className="h-4 w-4" />
+                        <button onClick={() => setDetailsMember(member)} className="p-2 border border-gray-300 rounded text-blue-700 hover:bg-blue-50" title="View"><Info className="h-4 w-4" /></button>
+                        <button onClick={() => handleDownloadPDF(member)} disabled={downloadingId === member.id} className="p-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 disabled:opacity-50" title="PDF">
+                           {downloadingId === member.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                         </button>
-
-                        {/* Download Button */}
-                        <button
-                          onClick={() => handleDownloadPDF(member)}
-                          disabled={downloadingId === member.id || deletingId === member.id}
-                          className="inline-flex items-center justify-center p-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-wait"
-                          title="Download PDF"
-                        >
-                          {downloadingId === member.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Download className="h-4 w-4" />
-                          )}
-                        </button>
-
-                        {/* Verify Button (Conditional) */}
                         {member.status === 'Pending' && (
-                          <button 
-                            onClick={() => handleVerify(member)}
-                            disabled={deletingId === member.id || downloadingId === member.id}
-                            className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors disabled:opacity-50"
-                          >
-                            <ShieldCheck className="h-4 w-4 mr-1" />
-                            Verify
-                          </button>
+                          <button onClick={() => handleVerify(member)} className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 flex items-center"><ShieldCheck className="h-4 w-4 mr-1" /> Verify</button>
                         )}
-                        
-                        {/* Status Badge (Non-pending) */}
-                        {member.status !== 'Pending' && (
-                          <span 
-                              className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-500 bg-gray-100 cursor-not-allowed"
-                          >
-                              {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
-                          </span>
-                        )}
-
-                        {/* Delete Button */}
-                        <button
-                          onClick={() => openDeleteModal(member)}
-                          disabled={downloadingId === member.id || deletingId === member.id}
-                          className="inline-flex items-center justify-center p-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors disabled:opacity-50 disabled:cursor-wait"
-                          title="Delete Member"
-                        >
-                          {deletingId === member.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </button>
+                        <button onClick={() => openDeleteModal(member)} className="p-2 border border-gray-300 rounded text-red-700 hover:bg-red-50" title="Delete"><Trash2 className="h-4 w-4" /></button>
                       </div>
                     </td>
-                    
                   </tr>
                 ))}
               </tbody>
@@ -480,263 +655,75 @@ const MemberList = () => {
         </div>
       )}
 
-      {/* --- PAGINATION CONTROL --- */}
+      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg shadow-sm">
            <div className="flex-1 flex justify-between sm:hidden">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-            >
-              Next
-            </button>
+            <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50">Previous</button>
+            <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50">Next</button>
           </div>
           <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Showing{' '}
-                <span className="font-medium">{startIndex + 1}</span> to{' '}
-                <span className="font-medium">{Math.min(endIndex, filteredMembers.length)}</span> of{' '}
-                <span className="font-medium">{filteredMembers.length}</span> results
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <span className="sr-only">Previous</span>
-                  <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-                </button>
-                
+            <p className="text-sm text-gray-700">Showing <span className="font-medium">{startIndex + 1}</span> to <span className="font-medium">{Math.min(endIndex, members.length)}</span> of <span className="font-medium">{members.length}</span> results</p>
+            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"><ChevronLeft className="h-5 w-5" /></button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <button
-                    key={page}
-                    onClick={() => handlePageChange(page)}
-                    aria-current={currentPage === page ? 'page' : undefined}
-                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                      currentPage === page
-                        ? 'z-10 bg-[#800000] border-[#800000] text-white'
-                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    {page}
-                  </button>
+                  <button key={page} onClick={() => handlePageChange(page)} className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${currentPage === page ? 'z-10 bg-[#800000] border-[#800000] text-white' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}>{page}</button>
                 ))}
-
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <span className="sr-only">Next</span>
-                  <ChevronRight className="h-5 w-5" aria-hidden="true" />
-                </button>
-              </nav>
-            </div>
+                <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"><ChevronRight className="h-5 w-5" /></button>
+            </nav>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Modal */}
       {isModalOpen && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity"
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity">
           <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 m-4">
-            <button 
-              onClick={closeDeleteModal}
-              disabled={!!deletingId}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 disabled:opacity-50"
-            >
-              <span className="sr-only">Close</span>
-              <X className="h-6 w-6" />
-            </button>
-
+            <button onClick={closeDeleteModal} disabled={!!deletingId} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 disabled:opacity-50"><X className="h-6 w-6" /></button>
             <div className="flex items-start">
-              <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
-              </div>
+              <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10"><AlertTriangle className="h-6 w-6 text-red-600" /></div>
               <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                <h3 className="text-lg leading-6 font-bold text-gray-900">
-                  Are you sure you want to delete?
-                </h3>
-                <div className="mt-2">
-                  <p className="text-sm text-gray-500">
-                    Accepting this will permanently remove the record
-                    {memberToDelete?.fullName && (
-                      <span className="font-medium text-gray-700"> for {memberToDelete.fullName}</span>
-                    )}
-                    . This action cannot be undone.
-                  </p>
-                </div>
+                <h3 className="text-lg leading-6 font-bold text-gray-900">Are you sure?</h3>
+                <p className="text-sm text-gray-500 mt-2">Permanently delete record for <span className="font-bold">{memberToDelete?.fullName}</span>?</p>
               </div>
             </div>
-
-            <div className="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse sm:space-x-4 sm:space-x-reverse">
-              <button
-                type="button"
-                onClick={handleConfirmDelete}
-                disabled={!!deletingId}
-                className="inline-flex justify-center w-full rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:text-sm disabled:opacity-50 disabled:cursor-wait"
-              >
-                {deletingId === memberToDelete?.id ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  'Accept changes'
-                )}
+            <div className="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse gap-2">
+              <button onClick={handleConfirmDelete} disabled={!!deletingId} className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 sm:text-sm disabled:opacity-50">
+                {deletingId ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : 'Delete'}
               </button>
-              <button
-                type="button"
-                onClick={closeDeleteModal}
-                disabled={!!deletingId}
-                className="mt-3 sm:mt-0 inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:text-sm disabled:opacity-50"
-              >
-                Reject
-              </button>
+              <button onClick={closeDeleteModal} disabled={!!deletingId} className="mt-2 sm:mt-0 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:text-sm">Cancel</button>
             </div>
-            
           </div>
         </div>
       )}
 
-      {/* Member Details Modal */}
+      {/* Details Modal */}
       {detailsMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
-            
-            {/* Header */}
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-gray-50 to-white">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-[#800000] text-white flex items-center justify-center shadow-md">
-                   {detailsMember.profile?.avatarUrl ? (
-                     <img src={detailsMember.profile.avatarUrl} alt="" className="h-12 w-12 rounded-full object-cover"/>
-                   ) : (
-                     <span className="text-lg font-bold">
-                       {detailsMember.fullName ? detailsMember.fullName.charAt(0) : "U"}
-                     </span>
-                   )}
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">{detailsMember.fullName}</h3>
-                  <p className="text-sm text-gray-500">{detailsMember.email}</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setDetailsMember(null)}
-                className="p-2 bg-white rounded-full hover:bg-gray-100 text-gray-500 shadow-sm border border-gray-200 transition"
-              >
-                <X size={20} />
-              </button>
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="text-xl font-bold text-gray-900">{detailsMember.fullName}</h3>
+              <button onClick={() => setDetailsMember(null)} className="p-2 bg-white rounded-full shadow-sm border"><X size={20} /></button>
             </div>
-
-            {/* Scrollable Body */}
-            <div className="overflow-y-auto p-6 flex-1 bg-gray-50/50">
+            <div className="overflow-y-auto p-6 flex-1">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Personal Information */}
-                <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100">
-                  <h4 className="text-sm font-bold text-[#800000] mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
-                    <User size={16} /> Personal Information
-                  </h4>
-                  <div className="space-y-1">
-                    <DetailRow label="NIC Number" value={detailsMember.nicNumber} />
-                    {/* FIX: Check both 'dob' and 'dateOfBirth' */}
-                    <DetailRow label="Date of Birth" value={detailsMember.dob || detailsMember.dateOfBirth} />
-                    <DetailRow label="Gender" value={detailsMember.gender} />
-                    <DetailRow label="Marital Status" value={detailsMember.maritalStatus} />
-                    <DetailRow label="Age" value={detailsMember.age} />
-                  </div>
+                <div className="space-y-4">
+                    <h4 className="font-bold text-[#800000]">Personal</h4>
+                    <DetailRow label="NIC" value={detailsMember.nicNumber} />
+                    <DetailRow label="Email" value={detailsMember.email} />
+                    <DetailRow label="Address" value={detailsMember.personalAddress} />
                 </div>
-
-                {/* Contact Information */}
-                <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100">
-                  <h4 className="text-sm font-bold text-[#800000] mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
-                    <Phone size={16} /> Contact Details
-                  </h4>
-                  <div className="space-y-1">
-                    <DetailRow label="Mobile" value={detailsMember.phoneNumber} />
-                    <DetailRow label="WhatsApp" value={detailsMember.whatsappNumber} />
-                    <DetailRow label="Personal Address" value={detailsMember.personalAddress} />
-                    <DetailRow label="Official Address" value={detailsMember.officialAddress} />
-                  </div>
-                </div>
-
-                {/* Professional Information */}
-                <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100">
-                  <h4 className="text-sm font-bold text-[#800000] mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
-                    <ShieldCheck size={16} /> Professional Info
-                  </h4>
-                  <div className="space-y-1">
+                <div className="space-y-4">
+                    <h4 className="font-bold text-[#800000]">Work</h4>
+                    <DetailRow label="Category" value={detailsMember.category} />
+                    <DetailRow label="Institution" value={detailsMember.institution} />
                     <DetailRow label="Designation" value={detailsMember.designation} />
-                    <DetailRow label="Employment Number" value={detailsMember.employmentNumber} />
-                    <DetailRow label="First Appointment" value={detailsMember.firstAppointmentDate} />
-                    <DetailRow label="Organization Type" value={detailsMember.organizationType} />
-                    <DetailRow label="Province" value={detailsMember.province} />
-                    <DetailRow label="District" value={detailsMember.district} />
-                    {/* <DetailRow label="RDHS" value={detailsMember.rdhs} /> */}
-                    <DetailRow label="Current Status" value={detailsMember.currentStatus} />
-                  </div>
                 </div>
-
-                {/* Educational Info */}
-                <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100">
-                  <h4 className="text-sm font-bold text-[#800000] mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
-                    <Calendar size={16} /> Educational Qualifications
-                  </h4>
-                  <div className="space-y-1">
-                    <DetailRow label="College / University" value={detailsMember.collegeUniversity} />
-                    <DetailRow label="Nursing Council Reg." value={detailsMember.nursingCouncilNumber} />
-                    <DetailRow label="Qualifications" value={detailsMember.educationalQualifications} />
-                    <DetailRow label="Specialties" value={detailsMember.specialties?.join(', ')} />
-                  </div>
-                </div>
-
-                {/* Signature (Full Width) */}
-                {detailsMember.signatureUrl && (
-                  <div className="md:col-span-2 bg-white p-5 rounded-lg shadow-sm border border-gray-100">
-                    <h4 className="text-sm font-bold text-[#800000] mb-4 pb-2 border-b border-gray-100">
-                       Signature
-                    </h4>
-                    <div className="flex justify-start">
-                       <img 
-                          src={detailsMember.signatureUrl} 
-                          alt="Signature" 
-                          className="max-h-24 border border-gray-200 rounded p-1"
-                        />
-                    </div>
-                  </div>
-                )}
-
               </div>
-            </div>
-
-            {/* Footer */}
-            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end">
-              <button 
-                onClick={() => setDetailsMember(null)}
-                className="px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition shadow-sm text-sm font-medium"
-              >
-                Close Details
-              </button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 };
